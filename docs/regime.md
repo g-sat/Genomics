@@ -82,6 +82,6 @@ Stress tests that start from this config and change one factor are in
 scan/family mix, keep the gap on seeds 7, 11, and 19. Three-generation
 pedigrees with duplication around 1.4 do not: both rankers then select the
 all-samples layout, and that layout is the exhaustive winner. The same
-split, at 1,175–1,207 people and at 667–685 people, is in
-`results/scale/` and `results/scale_overlap/`. A real multi-node HDFS
+split, at 1,175–1,207 people, at 3,328–3,370 people, and at 667–685 people, is in
+`results/scale/`, `results/scale_3k/`, and `results/scale_overlap/`. A real multi-node HDFS
 measurement is not this result. The neural ranker is not the method.

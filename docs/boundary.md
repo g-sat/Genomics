@@ -59,6 +59,29 @@ that oracle is more expensive than all-samples (seed 7: 218.7 vs 173.1).
 Both rankers select all-samples. The gap closes for the same reason it
 closed on the 70–100 person pedigrees.
 
+## Same open side at about 3,300 samples
+
+`configs/scale_3k.json` uses 500 founder couples, 2 generations, cross rate
+0.25, and 8,000 variants. Seeds 7, 11, and 19 have 3,370, 3,361, and 3,328
+people. Nuclear duplication is 1.293–1.298. PedPack selects nuclear families
+and matches the family oracle. The no-pedigree ranker selects all-samples.
+Fit objectives without pedigree features are 1.244×, 1.211×, and 1.208×
+PedPack. Held-out family bytes are 16.8×, 17.3×, and 16.7×. Scan bytes are
+1.16–1.17× higher for the family layout. Build and storage are higher for
+families; query time is lower. The split did not move between 1,200 and
+3,300 people.
+
+## 1000 Genomes pedigree, simulated dosages
+
+`data/pedigrees/1kg_complete_parents.ped` is the phase 3 pedigree after
+dropping people with only one recorded parent. It has 3,375 people, 636
+children, and 2,739 founders. `configs/public_1kg.json` runs the same
+selector and the same 8,000 simulated variants. Nuclear duplication is
+1.001. PedPack and the blind ranker both reject all-samples. Their fit
+objectives agree to within 0.2% on every seed. The all-samples fit
+objective is 1.42–1.49× PedPack, and held-out family bytes are 18.6–20.1×
+higher. On a pedigree that does not overlap, the group-size term is enough.
+
 ## The two-layout surface
 
 `family_versus_variant` is that trade-off with the search removed. At 1,200

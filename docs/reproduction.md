@@ -78,6 +78,15 @@ family is the naive object counted in `results/hail_columnar/`. The pack of
 python experiments/measure_parquet.py
 ```
 
+The larger simulator cohort and the Zstandard kinship check are:
+
+```bash
+python experiments/run_study.py --config configs/scale_3k.json --out results/scale_3k
+python experiments/measure_compression.py
+python experiments/prepare_1kg_ped.py
+python experiments/run_study.py --config configs/public_1kg.json --out results/public_1kg
+```
+
 ## Seeds
 
 `configs/pedigree_gap.json` and `configs/small.json` use seeds 7, 11, and 19. The simulator is

@@ -12,10 +12,10 @@ same group sizes and the same packing, and does not see who is related to
 whom.
 
 On 2-generation pedigrees the nuclear layout stores each overlapping person
-about 1.21–1.30 times. From 58 people through 1,207, with family queries
+about 1.21–1.30 times. From 58 people through about 3,370, with family queries
 naming about 5–15% of families, PedPack selects that layout and matches an
 exhaustive search of the pool. The ranker that cannot see pedigree identity
-selects the all-samples layout. At 1,175–1,207 people and 8,000 variants its
+selects the all-samples layout. At 1,175–3,370 people and 8,000 variants its
 fit objective is 1.20–1.28× the family layout, and it reads 16–18× more bytes
 on held-out families. The family layout costs more to build and to store.
 The win is query time. At nuclear duplication 1.42–1.44 both rankers select
@@ -284,11 +284,33 @@ against 70–71 s) and storage (4.7–4.9 s against 4.2–4.3 s). Query time is
 where it wins (4.4–5.9 s against 6.5–7.8 s). Scan bytes are 1.15–1.17×
 higher for the family layout.
 
+`configs/scale_3k.json` is the same regime with 500 founder couples. Seeds 7,
+11, and 19 have 3,370, 3,361, and 3,328 people, nuclear duplication
+1.293–1.298. PedPack selects `count:32` nuclear families and matches the
+family oracle. The blind ranker selects all-samples. Its fit objective is
+1.244×, 1.211×, and 1.208× PedPack. Held-out family bytes are 16.8×, 17.3×,
+and 16.7×. Build and storage are higher for the family layout (about 218–220 s
+and 13.4–13.6 s, against 197–199 s and 11.8–11.9 s). Query time is lower
+(14.7–17.5 s against 20.0–23.5 s).
+
 `configs/scale_overlap.json` is the closed side at the same variant count:
 667–685 people, 3 generations, cross rate 0.6, family-oracle duplication
 1.42–1.44. Both rankers select all-samples. The family oracle is more
-expensive (seed 7: 218.7 against 173.1). More samples did not move the
-boundary. Duplication did.
+expensive (seed 7: 218.7 against 173.1). Raising the sample count on that
+3-generation draw did not reopen the gap. Duplication did.
+
+The 1000 Genomes phase 3 pedigree is the same selector on a public graph.
+`experiments/prepare_1kg_ped.py` keeps the 3,375 people who have both parents
+or neither (636 children, 2,739 founders) from `20130606_g1k.ped`. Dosages
+are still simulated. Nuclear duplication is 1.001. Seeds 7 and 11 have
+PedPack on nuclear families at width 4,000 and the blind ranker on a
+full-width family or agglomerated layout; the fit objectives differ by
+0.15% and 0.007%. Seed 19 chooses the same agglomerated layout in both
+rankers. All-samples remains the expensive layout: its fit objective is
+1.42×, 1.43×, and 1.49× PedPack, and it reads 20.1×, 18.6×, and 19.9× more
+bytes on held-out families. With essentially no overlapping membership, group
+size is enough to reject all-samples. Pedigree identity is not doing extra
+work. The run is `results/public_1kg/`.
 
 An earlier configuration, 48 bytes per genotype and 256 KB blocks with a
 25% scan share, did not produce this gap. Both rankers kept an all-samples
@@ -384,5 +406,7 @@ the blind ranker. `boundary.py` is the two-layout tradeoff.
 extended, and held-out queries. `selector.py` is the budget. The encoder and
 the cost network in `models.py` are not the selector.
 `configs/pedigree_gap.json` is the locked small-cohort run. `configs/scale.json`
-is the 1,200-person run.
+is the 1,200-person run. `configs/scale_3k.json` is the 3,300-person run.
+`configs/public_1kg.json` is the 1000 Genomes pedigree with simulated dosages.
 `results/pedigree/report.md` is the table this draft was written from.
+`results/compression/report.md` is the Zstandard check of the kinship term.

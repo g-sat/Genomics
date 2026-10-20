@@ -106,7 +106,8 @@ def build_cohort(
     rng: np.random.Generator,
     bp_spacing: int = 100,
     permute_columns: bool = True,
-) -> Cohort:
+    return_haplotypes: bool = False,
+) -> Cohort | tuple[Cohort, np.ndarray, np.ndarray]:
     """Simulate dosages and optionally scramble column order.
 
     Scrambling stops an index-contiguous chunking policy from accidentally
@@ -114,7 +115,7 @@ def build_cohort(
     family sequentially.
     """
 
-    dosages, _paternal, _maternal, positions = simulate_genotypes(
+    dosages, paternal, maternal, positions = simulate_genotypes(
         pedigree, n_variants, rng, bp_spacing=bp_spacing
     )
     # Kinship is computed in topological order, then the matrix is permuted
@@ -135,7 +136,7 @@ def build_cohort(
                 out[new_col] = int(inverse[parent])
         return out
 
-    return Cohort(
+    cohort = Cohort(
         ids=np.asarray(pedigree.ids)[order],
         positions=positions,
         genotypes=np.ascontiguousarray(dosages[:, order]),
@@ -145,6 +146,13 @@ def build_cohort(
         family_id=np.asarray(pedigree.family_id, dtype=np.int32)[order],
         kinship=phi[np.ix_(order, order)],
     )
+    if return_haplotypes:
+        return (
+            cohort,
+            np.ascontiguousarray(paternal[:, order]),
+            np.ascontiguousarray(maternal[:, order]),
+        )
+    return cohort
 
 
 def cohort_from_ped(

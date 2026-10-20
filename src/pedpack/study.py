@@ -17,7 +17,7 @@ from pedpack.cost import storage_weight
 from pedpack.genotype import build_cohort, mendelian_error_count
 from pedpack.layout import prepare_layout
 from pedpack.models import train_embeddings
-from pedpack.pedigree import simulate_pedigree, trios
+from pedpack.pedigree import parse_ped, simulate_pedigree, trios
 from pedpack.selector import (
     analytical_objective,
     measured_objective,
@@ -68,14 +68,18 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
     started = time.perf_counter()
     rng = np.random.default_rng(seed)
     cluster = make_cluster(config.get("cluster"))
-    pedigree = simulate_pedigree(
-        n_families=int(config["n_families"]),
-        generations=int(config["generations"]),
-        mean_children=float(config["mean_children"]),
-        cross_rate=float(config["cross_rate"]),
-        rng=rng,
-        min_people=int(config.get("min_people", 24)),
-    )
+    ped_path = config.get("ped_path")
+    if ped_path:
+        pedigree = parse_ped(ped_path)
+    else:
+        pedigree = simulate_pedigree(
+            n_families=int(config["n_families"]),
+            generations=int(config["generations"]),
+            mean_children=float(config["mean_children"]),
+            cross_rate=float(config["cross_rate"]),
+            rng=rng,
+            min_people=int(config.get("min_people", 24)),
+        )
     cohort = build_cohort(
         pedigree,
         n_variants=int(config["n_variants"]),

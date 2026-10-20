@@ -81,10 +81,10 @@ They are not optional polish.
 | --- | --- |
 | Real multi-node HDFS, not a placement model | NameNode memory, scheduling noise, and disk behavior are not in the simulator. The compose file is one host. This machine has 16 GB of RAM and was not given 4–8 isolated VMs |
 | Cluster of 4, 8, 16 DataNodes on separate machines | The sensitivity pass only reassigns replicas in the model |
-| Data at tens of GB and above | The scaled simulator is 1,175–1,207 samples and 8,000 variants. That is not tens of GB. Small-file and block-roundup effects still need files that span many blocks for reasons other than the byte scale factor |
-| Public genotypes plus pedigree | 1000 Genomes pedigrees, or a cohort you can legally store. `parse_ped` and `load_dosage_npy` are the loaders. Dosages in the current study are simulated on the pedigree |
+| Data at tens of GB and above | The simulator now includes 3,328–3,370 samples and 8,000 variants (`results/scale_3k/`). The byte size is still `bytes_per_genotype` times the matrix, not tens of GB of stored genotypes. Small-file and block-roundup effects still need files that span many blocks for reasons other than that scale factor |
+| Public genotype matrices | The 1000 Genomes phase 3 pedigree is in `results/public_1kg/`: 3,375 people, duplication 1.001, simulated dosages. Both rankers reject all-samples and agree with each other. A public dosage matrix aligned to that pedigree is still not loaded |
 | Hail or Parquet on a matrix large enough that file-open cost is not the result | `results/hail_columnar/` is one MatrixTable per family and is not the layout. `results/parquet/` is the 12-file pack. Column projection ties the selective bytes. The 16× gap is the opaque-tile model |
-| A real codec | Replace `payload_bytes` with measured compressed sizes. The kinship term is a hypothesis about PBWT-style compression, not a measurement of it |
+| A PBWT codec | Zstandard level 3 on simulated haplotypes is in `results/compression/`. Family tiles are 0.907× and 0.918× the founder tiles; the formula predicts 0.883 and 0.888. That checks the kinship discount against a generic codec. It is not PBWT, and `compress_base` 0.45 is not the measured ratio on those one-byte alleles |
 | Failure of one or two DataNodes on the real cluster | The simulator has a failed-node switch. The hardware experiment is still open |
 
 Held-out workloads, the generic 2D baseline, the fixed heuristic, and the

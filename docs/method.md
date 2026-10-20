@@ -70,6 +70,16 @@ factor = clip(compress_base × (1 − kinship_alpha × mean_within_kinship), 0.0
 `factor` stands in for a codec that gets smaller on related haplotypes. It is
 not a PBWT implementation. Replacing `payload_bytes` is the intended seam.
 
+Zstandard level 3, on the simulated haplotypes of the locked and 1,200-person
+cohorts, does get smaller on nuclear families than on an equal-sized founder
+tile (`results/compression/`). The family/founder compressed-size ratio is
+0.907 on the locked seeds and 0.918 at 1,175–1,207 people. The formula, at
+the same mean kinship, predicts 0.883 and 0.888. The relative term is in the
+right direction and within a few points of this codec. The absolute
+`compress_base` of 0.45 is not the measured Zstandard/raw ratio, which is
+about 0.17 on these one-byte alleles. That parameter still prices the opaque
+400-byte genotype, not this byte matrix.
+
 ## Trio co-location and packing
 
 A trio is co-located when one sample group contains the father, the mother,
