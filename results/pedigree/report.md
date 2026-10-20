@@ -61,6 +61,18 @@ whole pool on the fit mix, then frozen.
 - Seed 11: 58 samples, 38 trios, 240 layouts. PedPack chose `family|g=16|w=1600|count:16|group_major|id=116` (trio co-location 1.00, 1 files). Generic oracle chose `generic|g=2|w=400|count:16|group_major|id=80` (trio co-location 0.18, 1 files).
 - Seed 19: 67 samples, 47 trios, 240 layouts. PedPack chose `family|g=19|w=800|count:16|group_major|id=110` (trio co-location 1.00, 3 files). Generic oracle chose `generic|g=3|w=400|count:16|group_major|id=80` (trio co-location 0.15, 1 files).
 
+## Amortized cost on the fit mix
+
+Horizon H = 32. Fit shares: {'scan': 0.35, 'family': 0.4, 'extended': 0.25}. Storage weight prices the reference layout at 0.25 reference scans. Amortized seconds per query is the fit objective divided by H. Per sample divides that by the number of people in the cohort.
+
+| Method | Build (s) | Storage (s) | Query (s) | Amortized s/query | Amortized s/sample |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| pedpack | 0.863 | 0.053 | 0.069 | 0.101 | 1.397e-03 |
+| pedpack_no_pedigree_features | 0.783 | 0.047 | 0.089 | 0.116 | 1.631e-03 |
+| variant_oracle | 0.783 | 0.047 | 0.089 | 0.116 | 1.631e-03 |
+| generic_oracle | 1.148 | 0.047 | 0.311 | 0.352 | 4.874e-03 |
+| heuristic_fixed | 0.863 | 0.053 | 0.069 | 0.101 | 1.414e-03 |
+
 ## Per-seed fit objectives
 
 | Seed | heuristic_fixed | variant_oracle | family_oracle | generic_oracle | pedigree_oracle | full_oracle | random_budget | analytical_budget | pedpack | pedpack_no_pedigree_features | pedpack_neural | pedpack_neural_blind | pedpack_generic_pool |

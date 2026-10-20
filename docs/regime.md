@@ -72,6 +72,9 @@ on layouts outside the neural pilot, was 0.987. Seconds MAPE was 0.215.
 
 ## What is not locked
 
-A different selectivity, a 50/50 scan mix, a three-generation pedigree, or a
-larger matrix is a stress test, not this result. A real HDFS measurement is
-not this result. The neural ranker is not the method.
+Stress tests that start from this config and change one factor are in
+`results/stress/summary.md`. Selectivity of 5%, 15%, and 40%, and a 50/50
+scan/family mix, keep the gap on seeds 7, 11, and 19. Three-generation
+pedigrees with duplication around 1.4 do not: both rankers then select the
+all-samples layout, and that layout is the exhaustive winner. A real HDFS
+measurement is not this result. The neural ranker is not the method.

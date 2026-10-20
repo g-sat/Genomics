@@ -238,6 +238,22 @@ not fit on, and it reads more on scans, in line with storing overlapping
 generations twice. Pedigree-blind chunks are worse than both, because they
 co-locate arbitrary samples and then shuffle the trios they split.
 
+The same comparison, re-fit from this config, is in `results/stress/summary.md`.
+Touching 5%, 15%, or 40% of families, and a fit mix that is half scans and
+half family queries, still separates the two rankers on every seed. At 5%
+the ablation's fit objective is 1.12–1.19× PedPack and it reads 12–16× more
+bytes on held-out families. At 40% the objective ratio falls to 1.00–1.13
+and the held-out byte ratio to 2.3–2.8×. The layouts are still different.
+
+Three generations and a cross rate of 0.6 remove the gap. Duplication of the
+nuclear layout rises to 1.33–1.43, the family oracle is more expensive than
+the variant oracle, and both rankers select all-samples. A 20% scan share
+restores a family choice on one of the three seeds only. A larger draw
+(102–147 samples, 3,200 variants) is the same story: the seed with
+duplication 1.45 selects all-samples; the other two still select families,
+with fit ratios 1.018 and 1.001. The search is tracking that cost. It is not
+a failure to notice the pedigree.
+
 An earlier configuration, 48 bytes per genotype and 256 KB blocks with a
 25% scan share, did not produce this gap. Both rankers kept an all-samples
 layout, and the numbers are in `results/small/`. That run is a different

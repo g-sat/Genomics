@@ -55,6 +55,11 @@ pedigree claim is not supported. The report states that directly. A gap is a
 different layout and a lower measured fit cost, and it has to show up on the
 held-out family list as well as on the fit mix.
 
+`experiments/run_stress.py` re-fits that comparison at family fractions 0.05,
+0.15, and 0.40, at a 50/50 scan/family mix, on a three-generation pedigree,
+and on a larger matrix. The locked run in `results/pedigree/` is not
+overwritten. The stress summary is `results/stress/summary.md`.
+
 ## Metrics
 
 For every method and workload the JSON stores objective, mean seconds, the

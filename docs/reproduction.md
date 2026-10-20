@@ -7,6 +7,7 @@ write `fit_ratios.png`.
 pip install -e ".[dev,plot]"
 pytest
 python experiments/run_study.py --config configs/pedigree_gap.json --out results/pedigree
+python experiments/run_stress.py
 ```
 
 That run writes `results/pedigree/study.json`, `results/pedigree/report.md`,
