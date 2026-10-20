@@ -1,0 +1,75 @@
+# One host, one NameNode, three DataNodes.
+# This is real HDFS software. It is not three machines, and a client that is
+# not a DataNode will see every block as remote. Block size matches the
+# simulator (64 KiB) so range reads cross more than one block.
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    hostname: namenode
+    ports:
+      - "9870:9870"
+    environment:
+      CLUSTER_NAME: pedpack
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "3"
+      HDFS_CONF_dfs_blocksize: "65536"
+      HDFS_CONF_dfs_namenode_fs___limits_min___block___size: "65536"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check: "false"
+    volumes:
+      - namenode:/hadoop/dfs/name
+
+  datanode1:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    hostname: datanode1
+    depends_on:
+      - namenode
+    environment:
+      SERVICE_PRECONDITION: namenode:9870
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "3"
+      HDFS_CONF_dfs_blocksize: "65536"
+      HDFS_CONF_dfs_namenode_fs___limits_min___block___size: "65536"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_datanode_use_datanode_hostname: "true"
+    volumes:
+      - datanode1:/hadoop/dfs/data
+
+  datanode2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    hostname: datanode2
+    depends_on:
+      - namenode
+    environment:
+      SERVICE_PRECONDITION: namenode:9870
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "3"
+      HDFS_CONF_dfs_blocksize: "65536"
+      HDFS_CONF_dfs_namenode_fs___limits_min___block___size: "65536"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_datanode_use_datanode_hostname: "true"
+    volumes:
+      - datanode2:/hadoop/dfs/data
+
+  datanode3:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    hostname: datanode3
+    depends_on:
+      - namenode
+    environment:
+      SERVICE_PRECONDITION: namenode:9870
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "3"
+      HDFS_CONF_dfs_blocksize: "65536"
+      HDFS_CONF_dfs_namenode_fs___limits_min___block___size: "65536"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_datanode_use_datanode_hostname: "true"
+    volumes:
+      - datanode3:/hadoop/dfs/data
+
+volumes:
+  namenode:
+  datanode1:
+  datanode2:
+  datanode3:

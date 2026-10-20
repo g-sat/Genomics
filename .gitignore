@@ -10,3 +10,4 @@ build/
 venv/
 *.pt
 .DS_Store
+results/transfer/**/part-*

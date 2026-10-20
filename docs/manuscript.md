@@ -238,7 +238,10 @@ not fit on, and it reads more on scans, in line with storing overlapping
 generations twice. Pedigree-blind chunks are worse than both, because they
 co-locate arbitrary samples and then shuffle the trios they split.
 
-The same comparison, re-fit from this config, is in `results/stress/summary.md`.
+The same comparison, re-fit from this config, is in `results/stress/summary.md`
+and `results/stress/boundary.png`. The reliable cases are frozen as
+`configs/positive/select_05.json`, `select_15.json`, and `mix_50.json`.
+`docs/boundary.md` states the generator settings on each side of the boundary.
 Touching 5%, 15%, or 40% of families, and a fit mix that is half scans and
 half family queries, still separates the two rankers on every seed. At 5%
 the ablation's fit objective is 1.12–1.19× PedPack and it reads 12–16× more
@@ -268,7 +271,13 @@ match the best pedigree grouping in the pool. The fixed heuristic is close,
 because the winning group structure is nuclear families; search still moves
 the width.
 
-Nothing here is a multi-node HDFS run, a Hail comparison, or a measurement of
+A single-host Hadoop 3.2.1 cluster with one NameNode and three DataNodes
+reproduced the byte ranking for the selective regimes and the tie for the
+three-generation pedigrees. Details and the limits of that run are in
+`results/hdfs/report.md`. It is one machine, the client is not a DataNode,
+and there is still no remote-read fraction and no Hail number.
+
+Nothing here is a multi-machine HDFS run, a Hail comparison, or a measurement of
 a real codec. The block model has no NameNode heap, no disk, and no scheduler
 noise. The cohorts are tens of samples, with a byte scale factor so that a
 family tile spans several 64 KB blocks; they are not a terabyte of 1000

@@ -70,6 +70,11 @@ variant oracle selected. Fit objectives were 3.224 vs 3.797, 2.592 vs 3.026,
 and 3.345 vs 3.705. The formula's objective Spearman against the simulator,
 on layouts outside the neural pilot, was 0.987. Seconds MAPE was 0.215.
 
+The three re-fits that keep this gap are frozen as
+`configs/positive/select_05.json`, `select_15.json`, and `mix_50.json`.
+The map of where the gap closes is `docs/boundary.md` and
+`results/stress/boundary.png`.
+
 ## What is not locked
 
 Stress tests that start from this config and change one factor are in
