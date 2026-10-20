@@ -84,7 +84,8 @@ class Query:
 
     ``samples`` and ``trios`` are column indices. A trio is
     ``(father, mother, child)``. ``workload`` is the protocol bucket
-    (``fit``, ``scan``, ``selective``, ``heldout``, ``window``).
+    (``fit``, ``scan``, ``family_selective``, ``extended``, ``heldout_family``,
+    ``heldout_extended``).
     """
 
     name: str

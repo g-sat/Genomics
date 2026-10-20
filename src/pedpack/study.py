@@ -32,7 +32,15 @@ from pedpack.simulator import measure, measure_many
 from pedpack.types import Cluster, Cohort, PreparedLayout, Query
 from pedpack.workloads import make_workloads
 
-WORKLOADS = ("fit", "scan", "selective", "heldout", "window")
+WORKLOADS = (
+    "fit",
+    "scan",
+    "family_selective",
+    "extended",
+    "heldout_family",
+    "heldout_extended",
+    "mixed",
+)
 
 
 def make_cluster(raw: dict | None) -> Cluster:
@@ -88,13 +96,19 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
         cohort,
         rng,
         n_fit_scan=int(config.get("n_fit_scan", 4)),
-        n_fit_selective=int(config.get("n_fit_selective", 10)),
+        n_fit_family=int(config.get("n_fit_family", 8)),
+        n_fit_extended=int(config.get("n_fit_extended", 6)),
         n_eval_scan=int(config.get("n_eval_scan", 4)),
-        n_eval_selective=int(config.get("n_eval_selective", 6)),
-        n_heldout=int(config.get("n_heldout", 6)),
-        n_windows=int(config.get("n_windows", 4)),
+        n_family_selective=int(config.get("n_family_selective", 8)),
+        n_extended=int(config.get("n_extended", 6)),
+        n_heldout_family=int(config.get("n_heldout_family", 6)),
+        n_heldout_extended=int(config.get("n_heldout_extended", 4)),
+        family_fraction=config.get("family_fraction"),
+        n_mixed_scan=int(config.get("n_mixed_scan", 0)),
+        n_mixed_family=int(config.get("n_mixed_family", 0)),
     )
-    catalog, spans = _concat(workloads)
+    order = tuple(name for name in WORKLOADS if workloads.get(name))
+    catalog, spans = _concat(workloads, order)
     if verbose:
         print(
             f"seed {seed}: {cohort.n_samples} samples, {cohort.n_variants} variants, "
@@ -110,10 +124,18 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
         start, end = spans[workload]
         return cache[index][start:end]
 
+    horizon = float(config.get("horizon_queries", 32))
+    mixed_weights = _bucket_weights(workloads.get("mixed", []), config.get("mixed_mixture", {"scan": 0.5, "family": 0.5}), horizon, "mixed")
+
     def summarize(index: int, workload: str) -> dict:
         rows = measurements(index, workload)
-        weights = fit_weights if workload == "fit" else None
-        return _summarize(layouts[index], rows, weight, weights)
+        if workload == "fit":
+            weights = fit_weights
+        elif workload == "mixed":
+            weights = mixed_weights
+        else:
+            weights = None
+        return _summarize(layouts[index], rows, weight, weights, horizon, cohort.n_samples)
 
     def best(indices: list[int], workload: str) -> int:
         weights = fit_weights if workload == "fit" else None
@@ -135,13 +157,13 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
     no_pedigree_ids = by_family["variant"] + by_family["generic"]
 
     methods: dict[str, dict] = {}
-    methods["variant_oracle"] = _oracle("variant_oracle", best(by_family["variant"], "fit"), len(by_family["variant"]), summarize)
-    methods["family_oracle"] = _oracle("family_oracle", best(by_family["family"], "fit"), len(by_family["family"]), summarize)
-    methods["generic_oracle"] = _oracle("generic_oracle", best(by_family["generic"], "fit"), len(by_family["generic"]), summarize)
-    methods["pedigree_oracle"] = _oracle("pedigree_oracle", best(pedigree_ids, "fit"), len(pedigree_ids), summarize)
-    methods["full_oracle"] = _oracle("full_oracle", best(list(range(len(layouts))), "fit"), len(layouts), summarize)
+    methods["variant_oracle"] = _oracle("variant_oracle", best(by_family["variant"], "fit"), len(by_family["variant"]), summarize, order)
+    methods["family_oracle"] = _oracle("family_oracle", best(by_family["family"], "fit"), len(by_family["family"]), summarize, order)
+    methods["generic_oracle"] = _oracle("generic_oracle", best(by_family["generic"], "fit"), len(by_family["generic"]), summarize, order)
+    methods["pedigree_oracle"] = _oracle("pedigree_oracle", best(pedigree_ids, "fit"), len(pedigree_ids), summarize, order)
+    methods["full_oracle"] = _oracle("full_oracle", best(list(range(len(layouts))), "fit"), len(layouts), summarize, order)
     methods["full_oracle"]["notes"] = "exhaustive over the whole pool, tuned on the fit mix"
-    methods["heuristic_fixed"] = _oracle("heuristic_fixed", heuristic_index, 1, summarize)
+    methods["heuristic_fixed"] = _oracle("heuristic_fixed", heuristic_index, 1, summarize, order)
     methods["heuristic_fixed"]["oracle"] = False
     methods["heuristic_fixed"]["notes"] = "fixed nuclear families, fixed width and pack"
 
@@ -156,10 +178,34 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
 
         return _measure
 
-    analytical = select_analytical(
-        layouts, fit_queries, cluster, weight, budget, cached("fit"), query_weights=fit_weights
+    aware = select_analytical(
+        layouts,
+        fit_queries,
+        cluster,
+        weight,
+        budget,
+        cached("fit"),
+        query_weights=fit_weights,
+        pedigree_aware=True,
     )
-    methods["analytical_budget"] = _from_selection(analytical, summarize, oracle=False)
+    methods["pedpack"] = _from_selection(aware, summarize, oracle=False, order=order)
+    methods["pedpack"]["notes"] = "analytical ranker with pedigree terms, then measure top B"
+    methods["analytical_budget"] = {**methods["pedpack"], "notes": "same pedigree-aware analytical search as pedpack"}
+
+    blind = select_analytical(
+        layouts,
+        fit_queries,
+        cluster,
+        weight,
+        budget,
+        cached("fit"),
+        query_weights=fit_weights,
+        pedigree_aware=False,
+    )
+    methods["pedpack_no_pedigree_features"] = _from_selection(blind, summarize, oracle=False, order=order)
+    methods["pedpack_no_pedigree_features"]["notes"] = (
+        "same budget, ranker cannot see who shares a group or a kinship discount"
+    )
 
     random_sel = select_random(
         layouts,
@@ -171,151 +217,126 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
         cached("fit"),
         query_weights=fit_weights,
     )
-    methods["random_budget"] = _from_selection(random_sel, summarize, oracle=False)
+    methods["random_budget"] = _from_selection(random_sel, summarize, oracle=False, order=order)
 
-    n_pilot = pilot_count(len(layouts), budget, fraction)
-    pilot = stratified_pilot(layouts, n_pilot, np.random.default_rng(seed + 5))
-    neural = select_neural(
-        layouts,
-        fit_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        budget,
-        fraction,
-        np.random.default_rng(seed + 5),
-        cached("fit"),
-        hide_pedigree=False,
-        hidden=hidden,
-        epochs=epochs,
-        seed=seed,
-        pilot_ids=pilot,
-        query_weights=fit_weights,
-    )
-    methods["pedpack"] = _from_selection(neural, summarize, oracle=False)
+    secondary = bool(config.get("secondary_neural", True))
+    if secondary:
+        n_pilot = pilot_count(len(layouts), budget, fraction)
+        pilot = stratified_pilot(layouts, n_pilot, np.random.default_rng(seed + 5))
+        neural = select_neural(
+            layouts,
+            fit_queries,
+            cohort,
+            cluster,
+            embeddings,
+            weight,
+            budget,
+            fraction,
+            np.random.default_rng(seed + 5),
+            cached("fit"),
+            hide_pedigree=False,
+            hidden=hidden,
+            epochs=epochs,
+            seed=seed,
+            pilot_ids=pilot,
+            query_weights=fit_weights,
+        )
+        methods["pedpack_neural"] = _from_selection(neural, summarize, oracle=False, order=order)
+        methods["pedpack_neural"]["notes"] = "secondary: neural ranker, pedigree feature columns kept"
 
-    blinded = select_neural(
-        layouts,
-        fit_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        budget,
-        fraction,
-        np.random.default_rng(seed + 5),
-        cached("fit"),
-        hide_pedigree=True,
-        hidden=hidden,
-        epochs=epochs,
-        seed=seed + 1,
-        pilot_ids=pilot,
-        query_weights=fit_weights,
-    )
-    methods["pedpack_no_pedigree_features"] = _from_selection(blinded, summarize, oracle=False)
+        blinded = select_neural(
+            layouts,
+            fit_queries,
+            cohort,
+            cluster,
+            embeddings,
+            weight,
+            budget,
+            fraction,
+            np.random.default_rng(seed + 5),
+            cached("fit"),
+            hide_pedigree=True,
+            hidden=hidden,
+            epochs=epochs,
+            seed=seed + 1,
+            pilot_ids=pilot,
+            query_weights=fit_weights,
+        )
+        methods["pedpack_neural_blind"] = _from_selection(blinded, summarize, oracle=False, order=order)
+        methods["pedpack_neural_blind"]["notes"] = "secondary: neural ranker with pedigree feature columns zeroed"
 
-    sub_layouts = [layouts[i] for i in no_pedigree_ids]
+        sub_layouts = [layouts[i] for i in no_pedigree_ids]
 
-    def measure_sub(local: int):
-        return measurements(no_pedigree_ids[local], "fit")
+        def measure_sub(local: int):
+            return measurements(no_pedigree_ids[local], "fit")
 
-    generic_sel = select_neural(
-        sub_layouts,
-        fit_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        budget,
-        fraction,
-        np.random.default_rng(seed + 9),
-        measure_sub,
-        hide_pedigree=False,
-        hidden=hidden,
-        epochs=epochs,
-        seed=seed + 2,
-        query_weights=fit_weights,
-    )
-    generic_sel.index = no_pedigree_ids[generic_sel.index]
-    methods["pedpack_generic_pool"] = _from_selection(generic_sel, summarize, oracle=False)
-    methods["pedpack_generic_pool"]["notes"] = "same selector, sample groups ignore the pedigree"
-
-    scan_queries = workloads["scan"]
-    scan_sel = select_neural(
-        layouts,
-        scan_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        budget,
-        fraction,
-        np.random.default_rng(seed + 11),
-        cached("scan"),
-        hidden=hidden,
-        epochs=epochs,
-        seed=seed + 3,
-    )
-    methods["pedpack_tuned_on_scan"] = _from_selection(scan_sel, summarize, oracle=False)
-    methods["pedpack_tuned_on_scan"]["notes"] = "selector objective was the scan workload"
-
-    selective_queries = workloads["selective"]
-    selective_sel = select_neural(
-        layouts,
-        selective_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        budget,
-        fraction,
-        np.random.default_rng(seed + 13),
-        cached("selective"),
-        hidden=hidden,
-        epochs=epochs,
-        seed=seed + 4,
-    )
-    methods["pedpack_tuned_on_selective"] = _from_selection(selective_sel, summarize, oracle=False)
-    methods["pedpack_tuned_on_selective"]["notes"] = "selector objective was the selective workload"
-
-    model = _model_report(
-        neural,
-        blinded,
-        layouts,
-        fit_queries,
-        cohort,
-        cluster,
-        embeddings,
-        weight,
-        pilot,
-        measurements,
-        fit_weights,
-    )
+        generic_sel = select_neural(
+            sub_layouts,
+            fit_queries,
+            cohort,
+            cluster,
+            embeddings,
+            weight,
+            budget,
+            fraction,
+            np.random.default_rng(seed + 9),
+            measure_sub,
+            hide_pedigree=False,
+            hidden=hidden,
+            epochs=epochs,
+            seed=seed + 2,
+            query_weights=fit_weights,
+        )
+        generic_sel.index = no_pedigree_ids[generic_sel.index]
+        methods["pedpack_generic_pool"] = _from_selection(generic_sel, summarize, oracle=False, order=order)
+        methods["pedpack_generic_pool"]["notes"] = "same selector, sample groups ignore the pedigree"
+        model = _model_report(
+            neural,
+            blinded,
+            layouts,
+            fit_queries,
+            cohort,
+            cluster,
+            embeddings,
+            weight,
+            pilot,
+            measurements,
+            fit_weights,
+        )
+    else:
+        model = _analytical_model_report(layouts, fit_queries, cluster, weight, measurements, fit_weights)
     sensitivity = _sensitivity(methods, layouts, fit_queries, cluster)
     analysis = {
-        "best_on_heldout": _oracle(
-            "best_on_heldout",
-            best(list(range(len(layouts))), "heldout"),
+        "best_on_heldout_family": _oracle(
+            "best_on_heldout_family",
+            best(list(range(len(layouts))), "heldout_family"),
             len(layouts),
             summarize,
+            order,
+        ),
+        "best_on_heldout_extended": _oracle(
+            "best_on_heldout_extended",
+            best(list(range(len(layouts))), "heldout_extended"),
+            len(layouts),
+            summarize,
+            order,
         ),
         "best_on_scan": _oracle(
             "best_on_scan",
             best(list(range(len(layouts))), "scan"),
             len(layouts),
             summarize,
-        ),
-        "best_on_window": _oracle(
-            "best_on_window",
-            best(list(range(len(layouts))), "window"),
-            len(layouts),
-            summarize,
+            order,
         ),
     }
     for bucket in analysis.values():
         bucket["analysis_only"] = True
         bucket["notes"] = "upper bound that was allowed to see this workload; not a method"
+
+    decisions = {
+        "pedpack": _decision_log(aware, layouts, measurements, weight, fit_weights),
+        "pedpack_no_pedigree_features": _decision_log(blind, layouts, measurements, weight, fit_weights),
+    }
 
     return {
         "seed": seed,
@@ -324,12 +345,15 @@ def run_seed(seed: int, config: dict, verbose: bool = True) -> dict:
         "n_trios": len(trios(cohort.father, cohort.mother)),
         "n_layouts": len(layouts),
         "n_fit_queries": len(fit_queries),
+        "query_stats": _query_stats(workloads, cohort.n_samples, cohort.n_variants),
+        "horizon_queries": horizon,
         "storage_seconds_per_byte": weight,
         "mendelian_errors": errors,
         "methods": methods,
         "model": model,
         "sensitivity": sensitivity,
         "analysis": analysis,
+        "decisions": decisions,
         "elapsed_seconds": time.perf_counter() - started,
     }
 
@@ -367,10 +391,10 @@ def _layouts(cohort: Cohort, embeddings: np.ndarray, cluster: Cluster, config: d
     return prepared, heuristic_index
 
 
-def _concat(workloads: dict[str, list[Query]]) -> tuple[list[Query], dict[str, tuple[int, int]]]:
+def _concat(workloads: dict[str, list[Query]], order: tuple[str, ...]) -> tuple[list[Query], dict[str, tuple[int, int]]]:
     catalog: list[Query] = []
     spans: dict[str, tuple[int, int]] = {}
-    for name in WORKLOADS:
+    for name in order:
         start = len(catalog)
         catalog.extend(workloads[name])
         spans[name] = (start, len(catalog))
@@ -417,6 +441,8 @@ def _summarize(
     rows: list,
     weight: float,
     query_weights: np.ndarray | None = None,
+    horizon: float = 32.0,
+    n_samples: int = 1,
 ) -> dict:
     seconds = np.asarray([row.seconds for row in rows], dtype=np.float64)
     read = np.asarray([row.bytes_read for row in rows], dtype=np.float64)
@@ -424,8 +450,16 @@ def _summarize(
     shuffle = np.asarray([row.shuffle_bytes for row in rows], dtype=np.float64)
     files = np.asarray([row.files_touched for row in rows], dtype=np.float64)
     total_read = float(read.sum())
+    objective = measured_objective(layout, rows, weight, query_weights)
+    storage_seconds = float(weight * layout.stats.storage_bytes)
+    build = float(layout.stats.build_seconds)
+    if query_weights is not None and horizon > 0:
+        weighted_query = (objective - build - storage_seconds) / horizon
+    else:
+        weighted_query = float(seconds.mean()) if seconds.size else 0.0
+    amortized = (build + storage_seconds) / horizon + weighted_query if horizon > 0 else objective
     return {
-        "objective": measured_objective(layout, rows, weight, query_weights),
+        "objective": objective,
         "mean_seconds": float(seconds.mean()),
         "seconds_std": float(seconds.std()),
         "mean_bytes": float(read.mean()),
@@ -435,8 +469,12 @@ def _summarize(
         "files": int(layout.stats.n_files),
         "blocks": int(layout.stats.n_blocks),
         "storage_bytes": float(layout.stats.storage_bytes),
+        "storage_seconds": storage_seconds,
         "primary_bytes": float(layout.stats.primary_bytes),
-        "build_seconds": float(layout.stats.build_seconds),
+        "build_seconds": build,
+        "weighted_query_seconds": float(weighted_query),
+        "amortized_per_query": float(amortized),
+        "amortized_per_sample": float(amortized / max(1, n_samples)),
         "duplication": float(layout.stats.duplication),
         "trio_colocation": float(layout.stats.trio_colocation),
         "mean_within_kinship": float(layout.stats.mean_within_kinship),
@@ -469,8 +507,8 @@ def _choice(summary: dict) -> dict:
     return {key: summary[key] for key in keys}
 
 
-def _oracle(name: str, index: int, measured: int, summarize) -> dict:
-    workloads = {workload: summarize(index, workload) for workload in WORKLOADS}
+def _oracle(name: str, index: int, measured: int, summarize, order: tuple[str, ...] = WORKLOADS) -> dict:
+    workloads = {workload: summarize(index, workload) for workload in order}
     return {
         "name": name,
         "index": int(index),
@@ -482,8 +520,8 @@ def _oracle(name: str, index: int, measured: int, summarize) -> dict:
     }
 
 
-def _from_selection(selection, summarize, oracle: bool) -> dict:
-    workloads = {workload: summarize(selection.index, workload) for workload in WORKLOADS}
+def _from_selection(selection, summarize, oracle: bool, order: tuple[str, ...] = WORKLOADS) -> dict:
+    workloads = {workload: summarize(selection.index, workload) for workload in order}
     return {
         "name": selection.notes,
         "index": int(selection.index),
@@ -559,35 +597,150 @@ def _model_report(
     return report
 
 
+def _bucket_weights(queries: list[Query], mixture: dict, horizon: float, prefix: str) -> np.ndarray | None:
+    """Horizon weights for a list whose names start with ``{prefix}-scan`` or ``{prefix}-family``."""
+
+    if not queries:
+        return None
+    shares = {
+        "scan": float(mixture.get("scan", 0.5)),
+        "family": float(mixture.get("family", 0.5)),
+    }
+    buckets = {"scan": [], "family": []}
+    for index, query in enumerate(queries):
+        if query.name.startswith(f"{prefix}-scan"):
+            buckets["scan"].append(index)
+        else:
+            buckets["family"].append(index)
+    present = {name: indexes for name, indexes in buckets.items() if indexes and shares[name] > 0}
+    weights = np.zeros(len(queries), dtype=np.float64)
+    if not present:
+        weights[:] = horizon / len(queries)
+        return weights
+    total = sum(shares[name] for name in present)
+    for name, indexes in present.items():
+        weights[indexes] = horizon * (shares[name] / total) / len(indexes)
+    return weights
+
+
+def _query_stats(workloads: dict[str, list[Query]], n_samples: int, n_variants: int) -> dict:
+    stats = {}
+    for name, queries in workloads.items():
+        if not queries:
+            continue
+        sample_fraction = [len(query.samples) / n_samples for query in queries]
+        variant_fraction = [query.n_variants_span / n_variants for query in queries]
+        stats[name] = {
+            "n_queries": len(queries),
+            "mean_sample_fraction": float(np.mean(sample_fraction)),
+            "mean_variant_fraction": float(np.mean(variant_fraction)),
+        }
+    return stats
+
+
+def _analytical_model_report(layouts, fit_queries, cluster, weight, measurements, query_weights) -> dict:
+    """Rank correlation of the pedigree-aware formula when the network is not run."""
+
+    true = np.asarray(
+        [measured_objective(layouts[i], measurements(i, "fit"), weight, query_weights) for i in range(len(layouts))],
+        dtype=np.float64,
+    )
+    analytical = np.asarray(
+        [analytical_objective(layouts[i], fit_queries, cluster, weight, query_weights) for i in range(len(layouts))],
+        dtype=np.float64,
+    )
+    actual = np.asarray(
+        [[row.seconds for row in measurements(i, "fit")] for i in range(len(layouts))],
+        dtype=np.float64,
+    )
+    predicted = np.asarray(
+        [
+            [analytical_objective_query(layouts[i], query, cluster) for query in fit_queries]
+            for i in range(len(layouts))
+        ],
+        dtype=np.float64,
+    )
+    return {
+        "pilot": 0,
+        "shortlist": 0,
+        "layouts_measured": len(layouts),
+        "val_mse": None,
+        "blinded_choice_same": None,
+        "spearman_neural": float("nan"),
+        "spearman_analytical": _spearman(analytical, true),
+        "seconds_mape_neural": float("nan"),
+        "seconds_mape_analytical": _mape(predicted, actual),
+    }
+
+
 def _fit_weights(queries: list[Query], config: dict) -> np.ndarray:
     """Per-query multipliers so the fit objective is a stated mixture.
 
-    A raw sum lets one full scan outvote many family-scoped queries, because a
-    scan reads the whole matrix. ``horizon_queries`` is how many future queries
-    the build is amortized over. ``fit_mixture`` splits that horizon between
-    scan-like queries and the rest of the fit list.
+    ``horizon_queries`` is how many future queries the build is amortized over.
+    ``fit_mixture`` splits that horizon across scans, family-centric queries,
+    and extended-pedigree queries. A bucket with no queries gives its share
+    back to the buckets that exist, so the weights still sum to the horizon.
     """
 
     horizon = float(config.get("horizon_queries", 32))
-    mixture = config.get("fit_mixture", {"scan": 0.25, "selective": 0.75})
-    scan_share = float(mixture.get("scan", 0.25))
-    selective_share = float(mixture.get("selective", 0.75))
-    scan_at = [i for i, query in enumerate(queries) if query.name.startswith("fit-scan")]
-    other_at = [i for i, query in enumerate(queries) if i not in set(scan_at)]
+    mixture = config.get("fit_mixture", {"scan": 0.35, "family": 0.40, "extended": 0.25})
+    shares = {
+        "scan": float(mixture.get("scan", 0.35)),
+        "family": float(mixture.get("family", mixture.get("selective", 0.40))),
+        "extended": float(mixture.get("extended", 0.25)),
+    }
+    buckets = {"scan": [], "family": [], "extended": []}
+    for index, query in enumerate(queries):
+        if query.name.startswith("fit-scan"):
+            buckets["scan"].append(index)
+        elif query.name.startswith("fit-ext"):
+            buckets["extended"].append(index)
+        else:
+            buckets["family"].append(index)
+    present = {name: indexes for name, indexes in buckets.items() if indexes and shares[name] > 0}
     weights = np.zeros(len(queries), dtype=np.float64)
-    if scan_at:
-        weights[scan_at] = horizon * scan_share / len(scan_at)
-    if other_at:
-        weights[other_at] = horizon * selective_share / len(other_at)
-    if not scan_at and other_at:
-        weights[other_at] = horizon / len(other_at)
+    if not present:
+        if queries:
+            weights[:] = horizon / len(queries)
+        return weights
+    total = sum(shares[name] for name in present)
+    for name, indexes in present.items():
+        weights[indexes] = horizon * (shares[name] / total) / len(indexes)
     return weights
+
+
+def _decision_log(selection, layouts, measurements, weight: float, fit_weights) -> list[dict]:
+    """Predicted and measured fit cost for every layout the search actually opened."""
+
+    rows = []
+    predicted = selection.predicted_objective
+    for index in selection.measured_indexes:
+        score = None if predicted is None else float(predicted[index])
+        measured = measured_objective(layouts[index], measurements(index, "fit"), weight, fit_weights)
+        stats = layouts[index].stats
+        rows.append(
+            {
+                "index": int(index),
+                "label": stats.label,
+                "family": stats.family,
+                "width": int(stats.width),
+                "pack": stats.pack,
+                "order": stats.order,
+                "n_files": int(stats.n_files),
+                "duplication": float(stats.duplication),
+                "trio_colocation": float(stats.trio_colocation),
+                "predicted_objective": score,
+                "measured_objective": float(measured),
+                "chosen": int(index) == int(selection.index),
+            }
+        )
+    return rows
 
 
 def analytical_objective_query(layout, query, cluster) -> float:
     from pedpack.cost import analytical_query
 
-    return float(analytical_query(layout, query, cluster).seconds)
+    return float(analytical_query(layout, query, cluster, pedigree_aware=True).seconds)
 
 
 def _sensitivity(methods, layouts, fit_queries, cluster) -> dict:

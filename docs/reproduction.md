@@ -6,11 +6,14 @@ write `fit_ratios.png`.
 ```
 pip install -e ".[dev,plot]"
 pytest
-python experiments/run_study.py --config configs/small.json --out results/small
+python experiments/run_study.py --config configs/pedigree_gap.json --out results/pedigree
 ```
 
-The study writes `results/small/study.json`, `results/small/report.md`, and,
-if Matplotlib is installed, `results/small/fit_ratios.png`.
+That run writes `results/pedigree/study.json`, `results/pedigree/report.md`,
+and, if Matplotlib is installed, `results/pedigree/fit_ratios.png`.
+`configs/small.json` is the earlier cluster scale (48 bytes per genotype,
+256 KiB blocks). `results/small/` was produced before the family-selective
+workloads and should not be compared number-for-number with `results/pedigree/`.
 
 `configs/tiny.json` is the configuration the tests execute. It is there to
 check the protocol (budget, coverage, Mendelian consistency), not to estimate
@@ -47,7 +50,7 @@ accidentally a family. Apply the same permutation to the dosage matrix that
 
 ## Seeds
 
-`configs/small.json` uses seeds 7, 11, and 19. The simulator is
+`configs/pedigree_gap.json` and `configs/small.json` use seeds 7, 11, and 19. The simulator is
 deterministic given the seed. A second run of the same config produces the
 same objectives. Variance in the report is variance across pedigrees and
 query draws.

@@ -9,7 +9,7 @@ from pedpack.genotype import build_cohort
 from pedpack.grouping import generic_chunks, grouping_stats, nuclear_groups
 from pedpack.layout import covers_cohort, prepare_layout, windows_by_bp
 from pedpack.manifest import layout_manifest
-from pedpack.pedigree import simulate_pedigree
+from pedpack.pedigree import simulate_pedigree, trios
 from pedpack.simulator import measure, replica_nodes
 from pedpack.types import Candidate, Cluster, Cohort, Query
 
@@ -61,7 +61,9 @@ def test_packed_narrow_query_reads_the_shared_block():
     query = Query("narrow", "fit", tuple(range(10)), 0, 50, ())
     simulated = measure(layout, query, cluster)
     formula = analytical_query(layout, query, cluster)
-    assert simulated.bytes_read > formula.bytes_read
+    # The queried half of the file shares its HDFS block with the other tile.
+    assert simulated.bytes_read == 1000
+    assert formula.bytes_read == 1000
 
 
 def test_naive_pack_creates_one_file_per_tile():
@@ -162,3 +164,25 @@ def test_failed_replica_is_a_remote_read():
     assert healthy.remote_fraction == 0.0
     assert broken.remote_fraction == 1.0
     assert broken.unavailable_blocks >= 1
+
+
+def test_blind_formula_misses_a_colocated_trio():
+    rng = np.random.default_rng(2)
+    pedigree = simulate_pedigree(3, 1, 2.0, 0.0, rng, min_people=8)
+    cohort = build_cohort(pedigree, 40, rng)
+    cluster = Cluster(bytes_per_genotype=50.0, block_size=1024, compress_base=0.5, kinship_alpha=0.4)
+    nuclear = nuclear_groups(cohort)
+    layout = prepare_layout(
+        Candidate("f", "family", tuple(tuple(g) for g in nuclear), 40, "naive", "group_major"),
+        cohort,
+        cluster,
+    )
+    family = set(nuclear[0])
+    inside = [trio for trio in trios(cohort.father, cohort.mother) if set(trio) <= family]
+    assert inside
+    query = Query("q", "family_selective", tuple(sorted(family)), 0, 20, (inside[0],))
+    aware = analytical_query(layout, query, cluster, pedigree_aware=True)
+    blind = analytical_query(layout, query, cluster, pedigree_aware=False)
+    assert aware.shuffle_bytes == 0.0
+    assert blind.shuffle_bytes > 0.0
+    assert aware.bytes_read < blind.bytes_read

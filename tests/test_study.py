@@ -27,6 +27,9 @@ def test_tiny_study_respects_the_measurement_budget():
     assert full <= generic + 1e-6
     assert seed["methods"]["heuristic_fixed"]["choice"]["trio_colocation"] == 1.0
     # The fit-tuned selector is scored on queries it was not allowed to fit.
-    for workload in ("heldout", "window", "scan", "selective"):
+    for workload in ("heldout_family", "heldout_extended", "scan", "family_selective", "extended"):
         assert seed["methods"]["pedpack"]["workloads"][workload]["objective"] > 0
-    assert seed["analysis"]["best_on_heldout"]["analysis_only"] is True
+    assert seed["analysis"]["best_on_heldout_family"]["analysis_only"] is True
+    assert seed["methods"]["pedpack_no_pedigree_features"]["layouts_measured"] <= budget
+    assert seed["decisions"]["pedpack"]
+    assert any(row["chosen"] for row in seed["decisions"]["pedpack"])

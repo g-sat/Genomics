@@ -7,7 +7,14 @@ from pathlib import Path
 
 import numpy as np
 
-WORKLOADS = ("fit", "scan", "selective", "heldout", "window")
+WORKLOADS = (
+    "fit",
+    "scan",
+    "family_selective",
+    "extended",
+    "heldout_family",
+    "heldout_extended",
+)
 MAIN_METHODS = (
     "heuristic_fixed",
     "variant_oracle",
@@ -17,11 +24,11 @@ MAIN_METHODS = (
     "full_oracle",
     "random_budget",
     "analytical_budget",
-    "pedpack_generic_pool",
-    "pedpack_no_pedigree_features",
     "pedpack",
-    "pedpack_tuned_on_scan",
-    "pedpack_tuned_on_selective",
+    "pedpack_no_pedigree_features",
+    "pedpack_neural",
+    "pedpack_neural_blind",
+    "pedpack_generic_pool",
 )
 
 
@@ -77,6 +84,53 @@ def _fmt(value: float, digits: int = 3) -> str:
     return f"{value:.{digits}f}"
 
 
+def _cost_lines(report: dict) -> list[str]:
+    """Break the fit objective into build, storage, and one query's share.
+
+    ``objective / horizon`` is the amortized seconds of one query from the
+    stated mixture. Dividing by the cohort size is the same quantity per
+    sample. Storage is priced so the reference all-samples layout costs
+    ``storage_scan_equivalents`` reference scans.
+    """
+
+    horizon = float(report["config"].get("horizon_queries", 32))
+    mixture = report["config"].get("fit_mixture", {})
+    equivalents = report["config"].get("cluster", {}).get("storage_scan_equivalents", 0.25)
+    methods = [
+        name
+        for name in ("pedpack", "pedpack_no_pedigree_features", "variant_oracle", "generic_oracle", "heuristic_fixed")
+        if name in report["seeds"][0]["methods"]
+    ]
+    lines = [
+        f"Horizon H = {horizon:g}. Fit shares: {mixture}. "
+        f"Storage weight prices the reference layout at {equivalents:g} reference scans. "
+        "Amortized seconds per query is the fit objective divided by H. "
+        "Per sample divides that by the number of people in the cohort.",
+        "",
+        "| Method | Build (s) | Storage (s) | Query (s) | Amortized s/query | Amortized s/sample |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for method in methods:
+        build, storage, query, per_query, per_sample = [], [], [], [], []
+        for seed in report["seeds"]:
+            row = seed["methods"][method]["workloads"]["fit"]
+            weight = float(seed["storage_seconds_per_byte"])
+            build_s = float(row["build_seconds"])
+            storage_s = weight * float(row["storage_bytes"])
+            query_s = (float(row["objective"]) - build_s - storage_s) / horizon
+            share = float(row["objective"]) / horizon
+            build.append(build_s)
+            storage.append(storage_s)
+            query.append(query_s)
+            per_query.append(share)
+            per_sample.append(share / seed["n_samples"])
+        lines.append(
+            f"| {method} | {_fmt(_median(build))} | {_fmt(_median(storage))} | {_fmt(_median(query))} | "
+            f"{_fmt(_median(per_query))} | {_fmt(_median(per_sample))} |"
+        )
+    return lines
+
+
 def to_markdown(report: dict) -> str:
     summary = aggregate(report)
     lines = [
@@ -96,19 +150,19 @@ def to_markdown(report: dict) -> str:
         "exhaustive search on the fit mix. `oracle` is the best layout in the",
         "whole pool on the fit mix, then frozen.",
         "",
-        "| Method | Fit / generic | Scan / generic | Selective / generic | Held-out / generic | Window / generic | Fit / oracle |",
+        "| Method | Fit / generic | Family / generic | Extended / generic | Held-out family / generic | Scan / generic | Fit / oracle |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for method in summary["workloads"]["fit"]:
         fit = summary["workloads"]["fit"][method]
         lines.append(
-            "| {method} | {fit} | {scan} | {sel} | {hold} | {win} | {oracle} |".format(
+            "| {method} | {fit} | {fam} | {ext} | {hold} | {scan} | {oracle} |".format(
                 method=method,
                 fit=_fmt(fit["ratio_to_generic_median"]),
+                fam=_fmt(summary["workloads"]["family_selective"][method]["ratio_to_generic_median"]),
+                ext=_fmt(summary["workloads"]["extended"][method]["ratio_to_generic_median"]),
+                hold=_fmt(summary["workloads"]["heldout_family"][method]["ratio_to_generic_median"]),
                 scan=_fmt(summary["workloads"]["scan"][method]["ratio_to_generic_median"]),
-                sel=_fmt(summary["workloads"]["selective"][method]["ratio_to_generic_median"]),
-                hold=_fmt(summary["workloads"]["heldout"][method]["ratio_to_generic_median"]),
-                win=_fmt(summary["workloads"]["window"][method]["ratio_to_generic_median"]),
                 oracle=_fmt(fit["ratio_to_full_oracle_median"]),
             )
         )
@@ -152,6 +206,8 @@ def to_markdown(report: dict) -> str:
             f"Generic oracle chose `{generic['label']}` "
             f"(trio co-location {generic['trio_colocation']:.2f}, {generic['files']} files)."
         )
+    lines.extend(["", "## Amortized cost on the fit mix", ""])
+    lines.extend(_cost_lines(report))
     lines.extend(["", "## Per-seed fit objectives", ""])
     header = "| Seed | " + " | ".join(summary["workloads"]["fit"]) + " |"
     sep = "| --- | " + " | ".join("---:" for _ in summary["workloads"]["fit"]) + " |"
@@ -165,11 +221,49 @@ def to_markdown(report: dict) -> str:
     lines.extend(
         [
             "",
-            "Held-out and window queries were not used to choose `pedpack`.",
-            "`best_on_heldout` in the JSON is an analysis upper bound that did see them.",
+            "Held-out family and extended queries were not used to choose `pedpack`.",
+            "`best_on_heldout_family` in the JSON is an analysis upper bound that did see them.",
+            "",
+            "## Pedigree gap",
+            "",
+            "Same measured fit objective. A gap is `pedpack` choosing a different layout",
+            "from `pedpack_no_pedigree_features`, with a lower cost.",
             "",
         ]
     )
+    for seed in report["seeds"]:
+        full = seed["methods"]["pedpack"]
+        blind = seed["methods"]["pedpack_no_pedigree_features"]
+        variant = seed["methods"]["variant_oracle"]
+        same = full["index"] == blind["index"]
+        lines.append(
+            f"- Seed {seed['seed']}: pedpack `{full['choice']['label']}` "
+            f"objective {_fmt(full['workloads']['fit']['objective'])}; "
+            f"no-pedigree `{blind['choice']['label']}` "
+            f"objective {_fmt(blind['workloads']['fit']['objective'])}; "
+            f"variant `{variant['choice']['label']}` "
+            f"objective {_fmt(variant['workloads']['fit']['objective'])}; "
+            f"same layout as ablation: {same}."
+        )
+    if "mixed" in report["seeds"][0]["methods"]["pedpack"]["workloads"]:
+        lines.extend(
+            [
+                "",
+                "## Mixed scan + family evaluation",
+                "",
+                "This list was not used to choose the layout. Its objective uses the same",
+                "horizon, with the shares in `mixed_mixture` (default half scan, half family).",
+                "",
+            ]
+        )
+        for seed in report["seeds"]:
+            full = seed["methods"]["pedpack"]["workloads"]["mixed"]["objective"]
+            blind = seed["methods"]["pedpack_no_pedigree_features"]["workloads"]["mixed"]["objective"]
+            generic = seed["methods"]["generic_oracle"]["workloads"]["mixed"]["objective"]
+            lines.append(
+                f"- Seed {seed['seed']}: pedpack {_fmt(full)}, no-pedigree {_fmt(blind)}, "
+                f"generic {_fmt(generic)}."
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -197,12 +291,12 @@ def _write_figure(report: dict, path: Path) -> None:
             "generic_oracle",
             "heuristic_fixed",
             "analytical_budget",
-            "pedpack_generic_pool",
+            "pedpack_no_pedigree_features",
             "pedpack",
         )
         if name in summary["workloads"]["fit"]
     ]
-    workloads = ["fit", "selective", "heldout", "scan"]
+    workloads = ["fit", "family_selective", "heldout_family", "scan"]
     x = np.arange(len(methods))
     width = 0.18
     fig, ax = plt.subplots(figsize=(10, 4.5))

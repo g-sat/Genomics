@@ -4,26 +4,27 @@
 
 We choose tile width, sample grouping, and file packing for a genotype matrix
 whose queries mix full scans with family-scoped hereditary lookups. The
-objective adds build time, replicated storage, and expected query time. Sample
-groups may ignore the pedigree, follow nuclear families, or follow a kinship
-encoder. A closed-form cost model and a small neural network both rank
-candidate layouts; the layout we keep is the one a block simulator measures as
-cheapest, inside a fixed measurement budget.
+objective adds build time, replicated storage, and expected query time. The
+selector that we call PedPack ranks candidate layouts with a closed-form cost
+model that can see which samples share a group, then keeps the cheapest layout
+a block simulator measures inside a fixed budget. A second ranker sees the
+same group sizes and the same packing, and does not see who is related to
+whom.
 
-On three synthetic cohorts (58–76 samples, 1,600 variants, byte costs scaled
-to a 256 KB block) a 32-query horizon with a 25% scan share selects an
-all-samples layout. That layout matches an exhaustive search of 240 candidates.
-Its mixed objective is 0.41× the best pedigree-blind two-dimensional tiling.
-The blind tiling splits trios and pays application shuffle. A fixed nuclear-family
-heuristic is also worse on this mix: people who are both children and parents
-are stored in two families (duplication 1.21–1.27), and scans read the copies.
-Retargeting the same selector at family-scoped queries switches it to family
-groups and, on two of the three seeds, cuts selective bytes from about
-7×10⁵ to about 1–2×10⁵. A message-passing kinship encoder did not beat nuclear
-families. The neural ranker was less accurate than the closed-form model
-(seconds MAPE 0.38 versus 0.24; objective Spearman 0.71 versus 0.98) and was
-not where the gain came from. These numbers are from a block simulator. They
-are not HDFS or Hail measurements.
+On three synthetic cohorts (58–76 samples, 1,600 variants, 400 bytes per
+genotype, 64 KB blocks) a 32-query horizon with a 35% scan share selects a
+nuclear-family layout on every seed. That layout matches an exhaustive search
+of 240 candidates. The ranker that cannot see pedigree identity selects the
+all-samples layout on every seed, the same layout the variant oracle selects.
+The all-samples fit objective is 1.11–1.18× the family layout. On family-scoped
+queries it reads 5.5–7.3× fewer bytes, and on held-out families, which were
+not used to choose the layout, 7.6–8.6× fewer. Scans go the other way: the
+family layout stores each multi-generation person twice (duplication
+1.21–1.27) and reads about 1.2× more on a scan. Index-chunk layouts are worse
+than both, because they split trios and pay shuffle. A neural ranker was less
+accurate than the formula (seconds MAPE 0.89 versus 0.22; objective Spearman
+0.91 versus 0.99) and is not the method behind the gap. These numbers are
+from a block simulator. They are not HDFS or Hail measurements.
 
 ## 1. The design problem
 
@@ -53,29 +54,35 @@ Five groupings are in the pool.
 Packing is one tile per file, a fixed tile count per file, or a byte target
 of four blocks. Write order is group-major or locus-major.
 
+A trio is co-located when one group contains the father, the mother, and the
+child. The layout rate is that fraction over the whole pedigree. The query
+rate is that fraction over the trios named in the query.
+
 The reason to search this space, rather than to declare that related samples
 belong together, is that "together" has two cheap implementations. One tile
 of everyone is together. One tile per nuclear family is together for that
 family and expensive for a scan. Which one wins depends on the fraction of
-scans, the duplication, and the file-open cost. The selector exists to make
-that call from a cost, not from a slogan.
+scans, the duplication, the record size, and how many families a query
+actually names. The selector exists to make that call from a cost.
 
 ## 2. Cost
 
 For a layout L and a horizon of H queries,
 
 ```
-C(L) = T_build(L) + ω S(L) + H (α mean T_scan + (1 − α) mean T_selective)
+C(L) = T_build(L) + ω S(L)
+     + H (α_scan mean T_scan + α_family mean T_family + α_extended mean T_extended)
 ```
 
 S(L) is the replicated size. ω is set so that storing the reference
-all-samples layout costs 0.25 reference scans. α is 0.25 and H is 32 in the
-reported run. Build, storage, and query time are all in seconds.
+all-samples layout costs 0.25 reference scans. In the reported run
+α_scan = 0.35, α_family = 0.40, α_extended = 0.25, and H = 32. Build,
+storage, and query time are all in seconds.
 
 An unweighted sum of a query list is the wrong objective here. A scan reads
-the matrix; a family-scoped query reads a few percent of it. Four scans plus
-ten selective queries is a scan benchmark. The mixture makes the scan share
-a parameter instead of an accident of list length.
+the matrix; a family-scoped query reads a few percent of the samples. The
+mixture makes the scan share a parameter instead of an accident of list
+length.
 
 Tile bytes are the raw record size times a compression factor
 
@@ -88,15 +95,22 @@ is not a measured PBWT. Build time reads the source once, shuffles a fraction
 (1 − trio co-location) of it, writes the primary copy, and writes extra
 replicas at remote bandwidth.
 
-The closed-form query model is missing two effects the simulator includes.
-Bytes are the overlapping fraction of a tile, with no round-up onto the block
-that is actually read. The remote fraction is a function of replication and
-node count, not of which node the task was placed on. Shuffle uses the
-layout-wide trio co-location rate, so a query against one intact family is
-over-charged on a layout that splits other families. Those gaps are the
-reason a learned ranker could, in principle, beat the formula.
+The pedigree-aware formula opens the true covering groups, uses those
+compressed tile sizes, rounds each touched file up to a block, and charges
+shuffle from the trios in the query. The remote fraction is not task
+placement. It starts from the replication shortfall and rises with the number
+of files opened. The blind formula keeps group sizes and packing. A group of
+size s is opened with probability 1 − (1 − q/N)^s, tiles are sized with
+kinship 0, and co-location is the mean group size over N. Two layouts with
+the same size histogram get the same selective-byte estimate.
 
-## 3. What is learned
+The formula still does not place the task. On the layouts PedPack kept, the
+simulator's remote fraction is about 0.56–0.59, and the formula's absolute
+objective is low by about a quarter to a third (predicted/measured 0.67–0.77
+on the chosen layout). Rank correlation on layouts held out of the neural
+pilot is 0.99, which is what the search uses.
+
+## 3. What is learned, and what actually searches
 
 The kinship encoder is a two-layer mean aggregator on the pedigree. Edges are
 parent–child and mate links. It is trained so that cosine similarity matches
@@ -106,20 +120,16 @@ pool as well.
 
 The cost network is a two-hidden-layer perceptron. It maps layout and query
 features to log bytes, remote fraction, log shuffle, and log milliseconds.
-Features include tile width, group size, trio co-location, the parent–child
-cut rate, within-group kinship, duplication, file and block counts, and the
-query's own sample and variant fractions. They do not include simulator
-outputs. Targets are standardized. Early stopping uses a held-out slice of
-the training rows.
+It is a secondary experiment. PedPack itself does not use it.
 
-The selector may measure B = 36 layouts out of 240. It measures a stratified
-pilot of about half of that budget, fits the network, and spends the rest on
-the layouts the network ranks highest. The returned layout is the cheapest
-among the ones that were measured. An analytical budget spends all 36
-measurements on the formula's top list. A random budget measures 36 random
-layouts. Oracles measure every layout in a family. They are upper bounds.
-`pedpack_no_pedigree_features` zeros the pedigree columns and keeps the same
-pilot. `pedpack_generic_pool` deletes every pedigree grouping from the pool.
+PedPack ranks all 240 layouts with the pedigree-aware formula and measures
+the top B = 36. The returned layout is the cheapest among those
+measurements. `pedpack_no_pedigree_features` is the same budget with the
+blind formula. `analytical_budget` is the same search as PedPack.
+`random_budget` measures 36 random layouts. Oracles measure every layout in
+a family. They are upper bounds. `pedpack_neural` and `pedpack_neural_blind`
+are the network with and without pedigree feature columns. They are not the
+pedigree claim.
 
 ## 4. Protocol
 
@@ -129,21 +139,25 @@ without Mendelian error; the study aborts if that check fails. Columns are
 permuted so that consecutive samples are not a family. Each seed draws its
 own pedigree and its own queries. Seeds are 7, 11, and 19.
 
-Fit queries are large ranges over every sample, plus family-scoped ranges on
-training families. Selective, scan, held-out, and short-window workloads are
-scored after the layout is chosen. Held-out queries use families that were
-withheld from the fit list. The window queries are short spans on those
-families. They imitate the access pattern of a compound-heterozygote search.
-They do not call variants.
+A family-centric query names 5–15% of the nuclear families and a window
+covering 20–40% of the variant axis. An extended query starts from one
+nuclear family, adds the parents of its members, and with probability one
+half adds a second family, so the request is not a clean independent trio.
+Held-out queries use different seed families and freshly drawn windows. An
+extended held-out query may still name a parent who also sits in a training
+family. Held-out lists are not in the selection objective.
 
-The simulator places replicas on 8 nodes at replication 3, reads a block from
+The simulator places replicas on 8 nodes at replication 3 and a 64 KB block,
+with 400 bytes per genotype and a 1 ms file-open cost. It reads a block from
 the node that holds the most replicas of the file's touched blocks, and
 charges shuffle when a queried trio is split across the groups that were
 opened. A sensitivity pass, with the chosen layouts held fixed, changes the
 node count, the block size, the replication factor, and fails node 0.
 
 The same rules apply to every method. The codec model, the queries, and the
-cluster do not change when the layout changes.
+cluster do not change when the layout changes. For each seed the study JSON
+records the shortlist: label, width, pack, duplication, trio co-location,
+predicted objective, and measured objective.
 
 ## 5. Simulator results
 
@@ -153,91 +167,107 @@ reference. The fit column is the mixture in Section 2. The other columns add
 one full build to that workload's own queries, so they are not on the same
 scale as the fit column.
 
-| Method | Fit / generic | Scan / generic | Selective / generic | Held-out / generic | Fit / oracle |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| PedPack (fit mix) | 0.409 | 0.405 | 0.752 | 0.728 | 1.000 |
-| Analytical budget | 0.409 | 0.405 | 0.752 | 0.728 | 1.000 |
-| Variant oracle | 0.409 | 0.405 | 0.752 | 0.728 | 1.000 |
-| Family oracle | 0.464 | 0.521 | 0.680 | 0.594 | 1.004 |
-| Fixed family heuristic | 0.491 | 0.561 | 0.677 | 0.588 | 1.069 |
-| Pedigree oracle | 0.464 | 0.521 | 0.680 | 0.594 | 1.004 |
-| Generic oracle | 1.000 | 1.000 | 1.000 | 1.000 | 2.445 |
-| PedPack tuned on selective queries | 0.515 | 0.563 | 0.672 | 0.578 | 1.310 |
+| Method | Fit / generic | Family / generic | Extended / generic | Held-out family / generic | Scan / generic | Fit / oracle |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| PedPack | 0.286 | 0.527 | 0.636 | 0.597 | 0.392 | 1.000 |
+| No-pedigree ranker | 0.335 | 0.703 | 0.680 | 0.720 | 0.349 | 1.168 |
+| Variant oracle | 0.335 | 0.703 | 0.680 | 0.720 | 0.349 | 1.168 |
+| Family oracle | 0.286 | 0.527 | 0.636 | 0.597 | 0.392 | 1.000 |
+| Fixed family heuristic | 0.286 | 0.530 | 0.637 | 0.597 | 0.392 | 1.007 |
+| Generic oracle | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 3.498 |
 
-PedPack's fit choice, on every seed, is an all-samples layout: one group,
-duplication 1, trio co-location 1, one or two files, tile width 100 or 800
-variants. It matches the exhaustive winner. The best index-chunk layout is
-2.4× more expensive on the same objective. Its trio co-location is 0.15–0.21.
-On seed 7 that layout shuffles 1.9×10⁶ bytes on the fit queries; the
-all-samples layout shuffles none.
+PedPack's fit choice, on every seed, is a nuclear-family layout with
+group-major order and 16 tiles per file. Tile width is 400, 1,600, and 800
+variants on seeds 7, 11, and 19. Trio co-location is 1. Duplication is 1.26,
+1.21, and 1.27. The fit objectives are 3.224, 2.592, and 3.345. Each matches
+the exhaustive winner and the family oracle.
 
-The fixed family heuristic loses to that all-samples layout on the mix and
-on scans. Duplication is 1.21, 1.26, and 1.27 on the three seeds. A scan of
-the family layout on seed 7 reads 2.9×10⁶ bytes against 1.7×10⁶ for the
-all-samples layout. The extra bytes are the overlapping generation, not a
-failure of co-location: trio co-location on the family layout is also 1.
+The no-pedigree ranker selects, on every seed, the all-samples layout at
+width 100 and 16 tiles per file. That is also the variant oracle. Its fit
+objectives are 3.797, 3.026, and 3.705, which is 1.18×, 1.17×, and 1.11×
+PedPack. Its shortlist is 24 variant layouts and 12 index-chunk layouts. It
+never measures a family layout. PedPack's shortlist is 12 family, 20 variant,
+and 4 pedigree layouts, and measurement then keeps the family layout.
 
-Family groups win when the objective ignores scans. On seed 7 the
-selective-tuned selector picks a family layout and drops selective bytes from
-6.4×10⁵ to 2.2×10⁵, and held-out bytes from 1.1×10⁶ to 3.1×10⁵. Held-out
-families were not in the selective training queries. On seed 11 the
-selective-tuned layout is again a family layout (naive packing, 16 files):
-selective seconds fall from 0.0085 to 0.0046, and scan seconds rise from
-0.016 to 0.077. On seed 19 the selective-tuned search returns a kinship
-grouping with trio co-location 0.79, which is worse on selective seconds
-(0.0072) than the nuclear-family oracle (0.0054). That is selector regret,
-and it lines up with the ranker's accuracy.
+On family-centric queries the byte gap is the point of the grouping. PedPack
+reads 9.0×10⁵, 7.7×10⁵, and 1.1×10⁶ bytes. The variant layout reads 6.6×10⁶,
+4.8×10⁶, and 6.0×10⁶, which is 7.3×, 6.2×, and 5.5× more. Held-out families,
+drawn after the choice, show the same direction: 6.9×10⁵ versus 5.9×10⁶,
+6.9×10⁵ versus 5.3×10⁶, and 6.1×10⁵ versus 4.7×10⁶ (8.6×, 7.7×, and 7.7×).
 
-The cost network, scored on layouts it did not train on, has seconds MAPE
-0.38 and objective Spearman 0.71. The formula on the same layouts has MAPE
-0.24 and Spearman 0.98. Hiding pedigree features does not change the fit-mix
-choice, because the winning layout is an all-samples layout and the formula
-already ranks that plateau correctly. Random measurement of 36 layouts also
-hits the plateau. The budget is easy when many variant layouts are nearly
-tied. It is not easy on the selective retune, where the network missed the
-best family layout on one seed.
+Scans still prefer one group. On seed 7 the family layout reads 2.0×10⁷
+bytes in 0.191 s and the variant layout reads 1.7×10⁷ bytes in 0.162 s. The
+ratio tracks the duplication. The 35% scan share is not large enough to
+overturn the family queries once a family query no longer reads every sample.
+
+The best index-chunk layout is 3.5× more expensive than PedPack on the fit
+objective. Trio co-location is 0.15–0.21. On seed 7 it shuffles 1.5×10⁷ bytes
+on the fit queries. The family layout and the variant layout shuffle none,
+because every trio they are asked about sits inside a group they open.
+
+The fixed heuristic is the same layout as PedPack on seed 7 (width 400). On
+seeds 11 and 19 the search prefers a wider tile and the heuristic is 2.624
+and 3.369 against PedPack's 2.592 and 3.345. The grouping, not the width
+search, is the gap against the variant layout.
 
 Agglomeration and the three-generation expansion do not beat nuclear families
-on the fit mix: the pedigree oracle and the family oracle have the same
-median ratios. The encoder is a working kinship embedding — parent and child
-land closer than unrelated founders in the unit test — and it does not change
-the layout the cost model selects.
+on this mix: the pedigree oracle and the family oracle have the same ratios.
+The encoder is a working kinship embedding — parent and child land closer
+than unrelated founders in the unit test — and it does not change the layout
+the cost model selects.
 
-At replication 3, failing node 0 does not change bytes or the remote fraction
-of the fit-mix layout on seed 7. At replication 1 the remote fraction on that
-layout rises from 0.12 to 0.62. A 64 KB block raises the remote fraction to
-0.55. A 512 KB block drops it to 0 and raises bytes read, because a narrow
-query pulls a larger block. File contents were not repacked for that pass.
-The layout was chosen at 256 KB and replication 3.
+The cost network, scored on layouts outside its pilot, has seconds MAPE 0.89
+and objective Spearman 0.91. The pedigree-aware formula on the same layouts
+has MAPE 0.22 and Spearman 0.99. The network still lands near the family
+oracle (fit / oracle 1.000 at the reported precision). It is not required
+for the gap between PedPack and the blind ranker.
+
+At replication 3, failing node 0 leaves the PedPack layouts with no
+unavailable blocks. File contents were not repacked in that pass. The
+sensitivity table is in `results/pedigree/study.json`.
 
 ## 6. What this does and does not show
 
-The result that survives is the following. For a mix that still contains a
-quarter of its queries as scans, the cheapest layout co-locates every sample
-in a few large files. Family packing is the wrong default on that mix,
-because multi-generation pedigrees duplicate people. Family packing is the
-right default when the queries are family-scoped, including on families the
-selector did not fit, and the same search procedure will move there if that
-is the objective. Pedigree-blind chunks are worse than both, because they
+The result that survives is the following. When queries name 5–15% of
+families on a substantial variant window, and records are large relative to
+the block, a ranker that knows which samples share a group selects nuclear
+families, and a ranker that sees only group sizes selects an all-samples
+layout. The family layout is the exhaustive winner of the 35/40/25 mix. It
+reads several times fewer bytes on family queries, including families it was
+not fit on, and it reads more on scans, in line with storing overlapping
+generations twice. Pedigree-blind chunks are worse than both, because they
 co-locate arbitrary samples and then shuffle the trios they split.
 
+An earlier configuration, 48 bytes per genotype and 256 KB blocks with a
+25% scan share, did not produce this gap. Both rankers kept an all-samples
+layout, and the numbers are in `results/small/`. That run is a different
+workload. It is not a contradiction of the table above, and it is not
+evidence that pedigree features help when the query still behaves like a
+scan.
+
 The result that does not survive is a claim that the neural ranker, or the
-kinship encoder, is why. On this simulator the formula ranks the pool better.
-The encoder does not find a grouping that nuclear families miss.
+kinship encoder, or a three-generation overlap, is why. On this simulator
+the formula ranks the pool better than the network, and nuclear families
+match the best pedigree grouping in the pool. The fixed heuristic is close,
+because the winning group structure is nuclear families; search still moves
+the width.
 
 Nothing here is a multi-node HDFS run, a Hail comparison, or a measurement of
 a real codec. The block model has no NameNode heap, no disk, and no scheduler
-noise. The cohorts are tens of samples, with a byte scale factor so that
-tiles cross a 256 KB block; they are not a terabyte of 1000 Genomes. A paper
-that stops at this simulator should not claim a distributed-systems speedup.
-The protocol those runs have to follow is in `docs/evaluation.md`: the same
-queries, the generic two-dimensional baseline, the fixed family heuristic,
-build and storage in the objective, and a held-out family set. Hail, if it
-is compared, has to be run. This repository does not contain a Hail number.
+noise. The cohorts are tens of samples, with a byte scale factor so that a
+family tile spans several 64 KB blocks; they are not a terabyte of 1000
+Genomes. A paper that stops at this simulator should not claim a
+distributed-systems speedup. The protocol those runs have to follow is in
+`docs/evaluation.md`: the same queries, the generic two-dimensional baseline,
+the fixed family heuristic, the blind ranker, build and storage in the
+objective, and a held-out family set. Hail, if it is compared, has to be
+run. This repository does not contain a Hail number.
 
 ## 7. Where the code matches the text
 
-`src/pedpack/study.py` is the protocol. `cost.py` is the formula. `simulator.py`
-is the measurement. `models.py` is the encoder and the ranker. `selector.py`
-is the budget. `configs/small.json` is the run behind Section 5.
-`results/small/report.md` is the table this draft was written from.
+`src/pedpack/study.py` is the protocol. `cost.py` is the formula, including
+the blind ranker. `simulator.py` is the measurement. `workloads.py` builds
+the family-centric, extended, and held-out queries. `models.py` is the
+encoder and the secondary network. `selector.py` is the budget.
+`configs/pedigree_gap.json` is the run behind Section 5.
+`results/pedigree/report.md` is the table this draft was written from.

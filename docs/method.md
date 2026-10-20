@@ -36,18 +36,21 @@ kinship only.
 
 ## Objective
 
-For a layout `L` and a fit mixture with scan share `α` and selective share `1 − α`,
-amortized over a horizon of `H` queries:
+For a layout `L` and a fit mixture with shares `α_scan`, `α_family`, and
+`α_extended`, amortized over a horizon of `H` queries:
 
 ```
-C(L) = T_build(L) + ω · S(L) + H · (α · mean T_scan + (1 − α) · mean T_selective)
+C(L) = T_build(L) + ω · S(L)
+     + H · (α_scan · mean T_scan
+            + α_family · mean T_family
+            + α_extended · mean T_extended)
 ```
 
-The default mixture is `α = 0.25`, `H = 32`. A raw sum of the query list is not
-used for selection: one scan reads orders of magnitude more than a family-scoped
-query, so an unweighted sum is a scan workload with a selective footnote.
-Scan-only and selective-only workloads are still reported on their own, and
-`pedpack_tuned_on_scan` re-runs the search with the scan queries as the objective.
+The pedigree-gap configuration uses `α_scan = 0.35`, `α_family = 0.40`,
+`α_extended = 0.25`, and `H = 32`. A raw sum of the query list is not used for
+selection: one scan reads much more than a family-scoped query, so an
+unweighted sum is a scan workload. Shares of empty buckets are renormalized
+onto the buckets that have queries.
 
 `S(L)` is the replicated size. `ω` prices that size as `storage_scan_equivalents`
 reference full scans of the all-samples layout. The default is `0.25`. Build,
@@ -67,19 +70,50 @@ factor = clip(compress_base × (1 − kinship_alpha × mean_within_kinship), 0.0
 `factor` stands in for a codec that gets smaller on related haplotypes. It is
 not a PBWT implementation. Replacing `payload_bytes` is the intended seam.
 
+## Trio co-location and packing
+
+A trio is co-located when one sample group contains the father, the mother,
+and the child. The layout rate is that fraction over every trio in the
+pedigree. The query rate is that fraction over the trios named in the query.
+Variant span is not part of the test: every group is tiled across the variant
+axis. An all-samples group has co-location 1 because every trio is inside it.
+
+Packing is independent of grouping:
+
+- `naive` writes one tile per file
+- `count:k` concatenates `k` tiles in write order
+- `bytes:B` starts a new file when the next tile would pass `B` bytes
+
+Group-major order keeps one group's tiles together, so a family query tends
+to open fewer files. Locus-major order keeps one variant span's groups
+together, which helps a scan and hurts a family query.
+
 ## What the formula is allowed to see
 
-`cost.analytical_query` ranks a layout without walking replicas. It is wrong
-on purpose in two places that matter on block storage:
+`cost.analytical_query` ranks a layout without walking replicas. With
+`pedigree_aware=True` it opens the true covering groups, uses the
+kinship-compressed tile sizes, rounds each touched file up to a whole block
+(capped at the file size), and charges shuffle from this query's trios:
 
-- bytes are the overlapping fraction of each tile, with no round-up to the
-  block that is actually read
-- the remote fraction is `0.05 × max(0, 1 − replication / n_nodes)`, not the
-  task placement
+```
+shuffle = (1 − query_trio_colocation) × n_trios × span × 3 × bytes_per_genotype
+```
 
-Shuffle uses the layout-wide trio co-location rate, not the trios in the
-query. A selective query against one intact family is therefore over-charged
-on a layout that splits other families.
+The remote fraction is still not task placement. It is
+
+```
+min(0.85, 0.05 × max(0, 1 − replication / n_nodes) + 0.25 × (files − 1) / files)
+```
+
+so a one-file layout stays near the replication baseline and a many-file
+layout pays more remote traffic.
+
+With `pedigree_aware=False` the ranker keeps group sizes and packing and
+drops identity. A group of size `s` is opened with probability
+`1 − (1 − q/N)^s`, tiles are sized with kinship 0, and co-location is
+`mean group size / N`. Two layouts with the same size histogram get the same
+selective-byte estimate. That is the ranker used by
+`pedpack_no_pedigree_features`.
 
 ## Simulator
 
@@ -95,8 +129,9 @@ on a layout that splits other families.
 - A trio whose three members do not share a selected group contributes
   `3 × variant_span × bytes_per_genotype` of shuffle.
 
-The same greedy group cover is used by the formula and the simulator, so they
-disagree about bytes and placement, not about which groups are opened.
+The pedigree-aware formula and the simulator use the same greedy group cover.
+They can still disagree on remote bytes, because the formula does not place
+the task. The blind formula does not use that cover.
 
 ## Kinship encoder
 
@@ -130,28 +165,32 @@ leaving variant and index-chunk layouts.
 ## Search under a measurement budget
 
 Let `B` be the number of layouts the selector may measure on the fit mix.
-The neural selector measures a stratified pilot of about `B/2` layouts
-(variant, generic, and pedigree buckets), fits the network, predicts the
-other layouts, and measures the best remainder until `B` measurements are
-used. The returned layout is the best among the ones it actually measured.
+`pedpack` ranks every layout with the pedigree-aware formula and measures the
+top `B`. The returned layout is the best among those measurements, not the
+formula's first place if measurement disagrees.
 
-Two budgeted controls use the same `B`:
+`pedpack_no_pedigree_features` is the same budget with the blind formula.
+`analytical_budget` is the same search as `pedpack`. `random_budget` measures
+`B` random layouts.
 
-- analytical: measure the `B` layouts the formula ranks first
-- random: measure `B` random layouts
+The neural selector is a secondary experiment (`pedpack_neural`). It measures
+a stratified pilot of about `B/2` layouts, fits the network, predicts the
+rest, and measures the best remainder until `B` measurements are used.
+`pedpack_neural_blind` zeroes the pedigree feature columns. The network is
+not the method the pedigree claim rests on.
 
-Oracles measure every layout in a family. They are upper bounds, labeled as
-such. `full_oracle` is the best layout in the whole pool on the fit mix.
+Oracles measure every layout in a family. They are upper bounds.
+`full_oracle` is the best layout in the whole pool on the fit mix.
 `pedigree_oracle` is restricted to family, agglomerative, and heuristic
-layouts. `generic_oracle` is restricted to index chunks. The gap between
-those two oracles is the value of pedigree groupings when search is free.
-The gap between `pedpack` and `full_oracle` is the regret of the budgeted
-search. The gap between `pedpack` and `pedpack_generic_pool` is the value of
-being allowed to propose pedigree groups under the same budget.
+layouts. `variant_oracle` is restricted to all-samples layouts.
+`generic_oracle` is restricted to index chunks. `heuristic_fixed` is one
+nuclear layout at a fixed width and pack.
 
-The fit mix is the only workload used to choose `pedpack`. Scan, selective,
-held-out families, and short windows are scored after the choice is frozen.
-`pedpack_tuned_on_scan` repeats the search with the scan queries as the
-objective, which shows whether the operating point moves when the mix changes.
-`analysis.best_on_heldout` is allowed to see the held-out queries. It is an
-upper bound, not a method.
+The fit mix is the only workload used to choose `pedpack`. Scan,
+family-selective, extended, and held-out lists are scored after the choice is
+frozen. `analysis.best_on_heldout_family` is allowed to see the held-out
+family queries. It is an upper bound, not a method.
+
+Every measured shortlist row is stored under `decisions` in the study JSON:
+label, family, width, pack, order, file count, duplication, trio
+co-location, predicted objective, and measured objective.

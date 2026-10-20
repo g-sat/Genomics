@@ -28,6 +28,7 @@ class Selection:
     surrogate: Surrogate | None
     predicted_objective: np.ndarray | None
     notes: str
+    measured_indexes: tuple[int, ...] = ()
 
 
 def _weighted_seconds(seconds: list[float] | np.ndarray, query_weights: np.ndarray | None) -> float:
@@ -58,10 +59,11 @@ def analytical_objective(
     cluster: Cluster,
     weight: float,
     query_weights: np.ndarray | None = None,
+    pedigree_aware: bool = True,
 ) -> float:
     seconds: list[float] = []
     for query in queries:
-        result = analytical_query(layout, query, cluster)
+        result = analytical_query(layout, query, cluster, pedigree_aware=pedigree_aware)
         if result.uncovered:
             return 1.0e12
         seconds.append(result.seconds)
@@ -133,12 +135,19 @@ def select_analytical(
     budget: int,
     measure,
     query_weights: np.ndarray | None = None,
+    pedigree_aware: bool = True,
 ) -> Selection:
     scores = np.asarray(
-        [analytical_objective(layout, queries, cluster, weight, query_weights) for layout in layouts],
+        [
+            analytical_objective(
+                layout, queries, cluster, weight, query_weights, pedigree_aware=pedigree_aware
+            )
+            for layout in layouts
+        ],
         dtype=np.float64,
     )
-    order = np.argsort(scores)
+    # mergesort is stable, so equal scores keep candidate order instead of hash order
+    order = np.argsort(scores, kind="mergesort")
     take = min(budget, len(layouts))
     shortlist = [int(i) for i in order[:take].tolist()]
     best_i = shortlist[0]
@@ -148,7 +157,8 @@ def select_analytical(
         if cost < best_cost:
             best_cost = cost
             best_i = index
-    return Selection(best_i, take, 0, take, None, scores, "analytical top-B")
+    note = "analytical top-B, pedigree-aware" if pedigree_aware else "analytical top-B, pedigree terms removed"
+    return Selection(best_i, take, 0, take, None, scores, note, tuple(shortlist))
 
 
 def select_neural(

@@ -46,20 +46,23 @@ results/          generated reports (not source)
 
 ```
 pip install -e ".[dev,plot]"
-python experiments/run_study.py --config configs/small.json --out results/small
+python experiments/run_study.py --config configs/pedigree_gap.json --out results/pedigree
 pytest
 ```
 
-`configs/tiny.json` is the smoke study used by the tests. `configs/small.json`
-is the simulator comparison behind `docs/manuscript.md`. The current run is
-summarized in `results/small/report.md`.
+`configs/tiny.json` is the smoke study used by the tests.
+`configs/pedigree_gap.json` is the simulator comparison behind
+`docs/manuscript.md`. The current run is summarized in
+`results/pedigree/report.md`. `results/small/` is an earlier workload
+(48 bytes per genotype, 256 KB blocks, 25% scan share) on which an
+all-samples layout won. Do not mix the two tables.
 
-On that run, with a 32-query horizon and a 25% scan share, the selector
-matches an exhaustive search and picks an all-samples layout. That layout's
-mixed objective is about 0.41× the best pedigree-blind tiling. A fixed
-nuclear-family packing is worse on the same mix because multi-generation
-families duplicate people. Retarget the selector at family-scoped queries and
-it moves to family groups. The neural ranker is less accurate than the
-closed-form model on this simulator; the gain is the search space and the
-objective, not the network. Details and the limits of the simulator are in
-the manuscript.
+On the pedigree-gap run, with a 32-query horizon split 35% scans, 40%
+family-centric queries, and 25% extended-pedigree queries, PedPack matches
+an exhaustive search and picks nuclear families on every seed. The same
+budget with a ranker that cannot see who shares a group picks the all-samples
+layout, and that layout reads about 5–9× more bytes on family and held-out
+family queries. Scans still cost more on the family layout, because people
+in two generations are stored twice. The neural ranker is less accurate than
+the closed-form model on this simulator. Details and the limits of the
+simulator are in the manuscript.

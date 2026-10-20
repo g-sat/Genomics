@@ -8,21 +8,24 @@ up, and whether that gain survives a workload the selector did not fit.
 
 | Factor | What is varied | Where |
 | --- | --- | --- |
-| Layout method | Variant, nuclear family, generic 2D, fixed heuristic, pedigree oracle, full oracle, random budget, analytical budget, PedPack, pedigree features hidden, pedigree groups removed, retuned on scans, retuned on selective queries | `study.run_seed` |
-| Tile width and pack | Widths, naive vs count vs byte-fill, group-major vs locus-major | `configs/small.json` |
-| Workload | Fit mix, scan, selective, held-out families, short windows | `workloads.py` |
+| Layout method | Variant oracle, nuclear family oracle, generic 2D, fixed heuristic, pedigree oracle, full oracle, random budget, pedigree-aware analytical (`pedpack`), blind analytical (`pedpack_no_pedigree_features`), neural and neural-blind as secondary | `study.run_seed` |
+| Tile width and pack | Widths, naive vs count vs byte-fill, group-major vs locus-major | `configs/pedigree_gap.json` |
+| Workload | Fit mix (scan / family / extended), scan, family-selective, extended, held-out family, held-out extended | `workloads.py` |
 | Cluster | Node count 4/8/16, block size at 1/4×, 1×, and 2×, replication 1 and 3, one failed node | sensitivity pass, layouts held fixed |
 | Correctness | Mendelian error count on simulated dosages; every query's samples must be covered | enforced in `run_seed` |
 
-The fit mix used for selection is not a raw sum of the query list. Full scans
-read so much more than a family-scoped query that an unweighted sum is a scan
-benchmark. Selection minimizes build plus storage plus a horizon of 32 queries,
-with 25% of that horizon on the fit scans and 75% on the fit selective queries.
-`pedpack_tuned_on_scan` and `pedpack_tuned_on_selective` repeat the search with
-those workloads as the objective. Held-out queries use nuclear families that
-were withheld from the fit list, including narrow regions and wider ones.
-Window queries are short spans on those held-out families. They are an access
-pattern, not a variant caller. Neither set is in the selection objective.
+The fit mix used for selection is not a raw sum of the query list. Selection
+minimizes build plus storage plus a horizon of 32 queries. In
+`configs/pedigree_gap.json` that horizon is 35% scans, 40% family-centric
+queries, and 25% extended-pedigree queries.
+
+A family-centric query names 5–15% of the nuclear families (at least one) and
+a window covering 20–40% of the variant axis. An extended query starts from
+one nuclear family, adds the parents of its members, and with probability 1/2
+adds a second overlapping family. Held-out queries use different seed families
+and freshly drawn windows. An extended held-out query may still name a parent
+who also belongs to a training family. None of the held-out lists are in the
+selection objective.
 
 Repetition is across pedigree seeds, not across identical reruns of a
 deterministic simulator. The report gives the median and the min/max of the
@@ -39,17 +42,18 @@ oracle and full oracle, then the median ratio is reported.
 | `generic_oracle` | Exhaustive inside index chunks | No |
 | `pedigree_oracle` | Exhaustive inside pedigree groupings | Yes |
 | `full_oracle` | Exhaustive on the whole pool | Allowed |
-| `analytical_budget` | Formula picks `B` layouts, then measurement | Allowed |
+| `analytical_budget` | Same search as `pedpack` | Allowed |
 | `random_budget` | `B` random layouts | Allowed |
-| `pedpack` | Pilot plus network shortlist, budget `B` | Allowed |
-| `pedpack_no_pedigree_features` | Same budget and same pilot, pedigree columns zeroed | Allowed, but hidden from the ranker |
-| `pedpack_generic_pool` | Same budget, pool is variant plus index chunks | No |
+| `pedpack` | Pedigree-aware formula picks `B` layouts, then measurement | Allowed |
+| `pedpack_no_pedigree_features` | Same budget, blind formula (no group identity, no kinship discount) | Groups exist, but the ranker cannot see who is in them |
+| `pedpack_neural` | Secondary. Pilot plus network shortlist | Allowed |
+| `pedpack_neural_blind` | Secondary. Pedigree feature columns zeroed | Allowed, but hidden from the network |
+| `pedpack_generic_pool` | Secondary. Same neural budget, pool is variant plus index chunks | No |
 
-If `pedpack` does not beat `pedpack_generic_pool` and `generic_oracle` on the
-mixed and held-out workloads, the pedigree-aware claim is not supported by
-this run. The report is expected to show that, not to hide it. Full scans can
-favor a coarse variant layout; `pedpack_tuned_on_scan` exists so that shift is
-visible.
+If `pedpack` and `pedpack_no_pedigree_features` choose the same layout, the
+pedigree claim is not supported. The report states that directly. A gap is a
+different layout and a lower measured fit cost, and it has to show up on the
+held-out family list as well as on the fit mix.
 
 ## Metrics
 
@@ -85,11 +89,12 @@ paper that drops any of them will be arguing a weaker claim than the one in
 
 ## How to read a result
 
-On a mixed fit workload, a pedigree layout should read fewer bytes than an
-all-samples layout for selective queries, and it should shuffle less than an
-index-chunk layout when trios are split. On a pure scan, file-open cost and
-sequential layout can outweigh grouping. PedPack is doing its job when the
-chosen layout changes between `pedpack` and `pedpack_tuned_on_scan`.
+On a family-centric query, a pedigree layout should read fewer bytes than an
+all-samples layout, and it should shuffle less than an index-chunk layout
+when trios are split. On a pure scan, duplication and file-open cost can
+outweigh grouping. PedPack is doing its job when `pedpack` and
+`pedpack_no_pedigree_features` choose different layouts and the pedigree-aware
+choice has the lower measured cost on the fit mix and on held-out families.
 
 A ratio below 1 against `generic_oracle` is a win on that workload. A ratio
 near 1 against `full_oracle` means the budgeted search found the exhaustive
