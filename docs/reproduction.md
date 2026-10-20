@@ -49,6 +49,35 @@ Column order in the study is then scrambled so that a contiguous chunk is not
 accidentally a family. Apply the same permutation to the dosage matrix that
 `build_cohort` applies to simulated dosages.
 
+## Larger cohorts
+
+```bash
+python experiments/run_study.py --config configs/scale.json --out results/scale
+python experiments/run_study.py --config configs/scale_overlap.json --out results/scale_overlap
+```
+
+The first is 180 founder couples, 2 generations, 8,000 variants, family
+queries at 5% of families. The second is 80 founder couples, 3 generations,
+cross rate 0.6. Both use seeds 7, 11, and 19. Agglomeration at this size is
+the average-linkage update in `grouping.py`; it is the same merge rule as
+the small pedigrees.
+
+Hail, if installed, times a variant-keyed MatrixTable against a family-keyed
+table on the first config:
+
+```bash
+python experiments/hail_baseline.py --config configs/scale.json --out results/hail
+```
+
+The run in this repository used Hail 0.2.139 in Spark local mode inside WSL.
+That is one virtual machine, not a Hail cluster. One MatrixTable per nuclear
+family is the naive object counted in `results/hail_columnar/`. The pack of
+32 groups per file, as Parquet, is:
+
+```bash
+python experiments/measure_parquet.py
+```
+
 ## Seeds
 
 `configs/pedigree_gap.json` and `configs/small.json` use seeds 7, 11, and 19. The simulator is

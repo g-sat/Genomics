@@ -1,0 +1,77 @@
+{
+  "seeds": [
+    {
+      "seed": 7,
+      "n_samples": 1207,
+      "n_variants": 8000,
+      "n_nuclear_groups": 361,
+      "duplication": 1.2999171499585749,
+      "tsv_seconds": 1.591349250999997,
+      "default_write_seconds": 18.658629677999983,
+      "family_write_seconds": 936.589841725,
+      "default_bytes": 2954268,
+      "family_bytes": 33884477,
+      "n_partitions": 16,
+      "family_tables": 361,
+      "queries": [
+        {
+          "name": "hold-fam-0",
+          "workload": "heldout_family",
+          "n_samples": 86,
+          "n_variants": 2913,
+          "n_groups": 18,
+          "hail_entries": 250518,
+          "hail_seconds": 1.7139368400000876,
+          "family_entries": 250518,
+          "family_seconds": 8.053453240999943
+        },
+        {
+          "name": "hold-fam-1",
+          "workload": "heldout_family",
+          "n_samples": 71,
+          "n_variants": 2907,
+          "n_groups": 18,
+          "hail_entries": 206397,
+          "hail_seconds": 0.5837837130000025,
+          "family_entries": 209304,
+          "family_seconds": 7.434472212000173
+        },
+        {
+          "name": "hold-fam-2",
+          "workload": "heldout_family",
+          "n_samples": 74,
+          "n_variants": 2103,
+          "n_groups": 18,
+          "hail_entries": 155622,
+          "hail_seconds": 0.34758584899987,
+          "family_entries": 157725,
+          "family_seconds": 7.8421433040000466
+        },
+        {
+          "name": "hold-fam-3",
+          "workload": "heldout_family",
+          "n_samples": 78,
+          "n_variants": 1677,
+          "n_groups": 18,
+          "hail_entries": 130806,
+          "hail_seconds": 0.4081810489999498,
+          "family_entries": 132483,
+          "family_seconds": 7.055335553000077
+        },
+        {
+          "name": "scan-0",
+          "workload": "scan",
+          "n_samples": 1207,
+          "n_variants": 4425,
+          "n_groups": 361,
+          "hail_entries": 5340975,
+          "hail_seconds": 0.5521274420000282,
+          "family_entries": 6942825,
+          "family_seconds": 169.1620095149999
+        }
+      ],
+      "engine": "hail 0.2.139-5e5eedb87ff8 local[2]",
+      "family_object": "one MatrixTable per nuclear family"
+    }
+  ]
+}

@@ -182,14 +182,16 @@ def to_markdown(report: dict) -> str:
             f"{_fmt(row['mean_shuffle_median'])} |"
         )
     model = summary["model"]
+    lines.extend(["", "## Cost model", ""])
+    neural_mape = model.get("seconds_mape_neural_median")
+    if isinstance(neural_mape, (int, float)) and neural_mape == neural_mape:
+        lines.append(f"- Neural seconds MAPE: {_fmt(neural_mape)}")
+        lines.append(f"- Neural objective Spearman: {_fmt(model['spearman_neural_median'])}")
+    else:
+        lines.append("- Neural ranker: not run. The selector is the analytical model.")
     lines.extend(
         [
-            "",
-            "## Cost model, layouts held out of the pilot",
-            "",
-            f"- Neural seconds MAPE: {_fmt(model['seconds_mape_neural_median'])}",
             f"- Analytical seconds MAPE: {_fmt(model['seconds_mape_analytical_median'])}",
-            f"- Neural objective Spearman: {_fmt(model['spearman_neural_median'])}",
             f"- Analytical objective Spearman: {_fmt(model['spearman_analytical_median'])}",
             "",
             "## Layouts chosen on the fit mix",

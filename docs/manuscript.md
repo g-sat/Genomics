@@ -11,20 +11,18 @@ a block simulator measures inside a fixed budget. A second ranker sees the
 same group sizes and the same packing, and does not see who is related to
 whom.
 
-On three synthetic cohorts (58–76 samples, 1,600 variants, 400 bytes per
-genotype, 64 KB blocks) a 32-query horizon with a 35% scan share selects a
-nuclear-family layout on every seed. That layout matches an exhaustive search
-of 240 candidates. The ranker that cannot see pedigree identity selects the
-all-samples layout on every seed, the same layout the variant oracle selects.
-The all-samples fit objective is 1.11–1.18× the family layout. On family-scoped
-queries it reads 5.5–7.3× fewer bytes, and on held-out families, which were
-not used to choose the layout, 7.6–8.6× fewer. Scans go the other way: the
-family layout stores each multi-generation person twice (duplication
-1.21–1.27) and reads about 1.2× more on a scan. Index-chunk layouts are worse
-than both, because they split trios and pay shuffle. A neural ranker was less
-accurate than the formula (seconds MAPE 0.89 versus 0.22; objective Spearman
-0.91 versus 0.99) and is not the method behind the gap. These numbers are
-from a block simulator. They are not HDFS or Hail measurements.
+On 2-generation pedigrees the nuclear layout stores each overlapping person
+about 1.21–1.30 times. From 58 people through 1,207, with family queries
+naming about 5–15% of families, PedPack selects that layout and matches an
+exhaustive search of the pool. The ranker that cannot see pedigree identity
+selects the all-samples layout. At 1,175–1,207 people and 8,000 variants its
+fit objective is 1.20–1.28× the family layout, and it reads 16–18× more bytes
+on held-out families. The family layout costs more to build and to store.
+The win is query time. At nuclear duplication 1.42–1.44 both rankers select
+all-samples, and the family oracle is the more expensive layout. A two-layout
+formula with the same block model predicts that sign. A neural cost model is
+not part of the method. These numbers are from a block simulator. A separate
+local-mode Hail run is reported below. Neither is a multi-node HDFS result.
 
 ## 1. The design problem
 
@@ -107,29 +105,41 @@ the same size histogram get the same selective-byte estimate.
 The formula still does not place the task. On the layouts PedPack kept, the
 simulator's remote fraction is about 0.56–0.59, and the formula's absolute
 objective is low by about a quarter to a third (predicted/measured 0.67–0.77
-on the chosen layout). Rank correlation on layouts held out of the neural
-pilot is 0.99, which is what the search uses.
+on the chosen layout). Rank correlation against the simulator is what the
+search uses. On the scaled pool it is 0.95.
 
-## 3. What is learned, and what actually searches
+The same block arithmetic, reduced to two layouts, is
+`family_versus_variant`. A query that names a fraction f of the nuclear
+groups reads about f of the family layout and the whole all-samples layout.
+Extended queries count as twice that fraction. Both layouts are charged the
+measured remote fraction of 0.6, because the simulator does not make a
+one-file layout local. At 1,200 samples, duplication 1.30, and f = 0.05 the
+all-samples objective is 1.06× the family objective. At duplication 1.43 and
+the same f, the family layout loses (ratio 0.97). At f = 0.60 and duplication
+1.30 it loses as well. The 40% family-query cell is the thin edge: the
+formula already prefers all-samples, while the small-cohort simulator still
+picks families with a fit ratio near 1. The surface is
+`results/boundary/heatmap.png`.
 
-The kinship encoder is a two-layer mean aggregator on the pedigree. Edges are
-parent–child and mate links. It is trained so that cosine similarity matches
-kinship / ½, clipped to [0, 1]. Query times are not in that loss. Agglomeration
-may add λ times the embedding cosine to the kinship score. λ = 0 is in the
-pool as well.
+## 3. What searches
 
-The cost network is a two-hidden-layer perceptron. It maps layout and query
-features to log bytes, remote fraction, log shuffle, and log milliseconds.
-It is a secondary experiment. PedPack itself does not use it.
+PedPack ranks the pool with the pedigree-aware formula and measures the top
+B layouts (36 in the locked run, 24 in the scaled run). The returned layout
+is the cheapest of those measurements. `pedpack_no_pedigree_features` is the
+same budget with the blind formula. `analytical_budget` is the same search
+as PedPack. `random_budget` measures B random layouts.
 
-PedPack ranks all 240 layouts with the pedigree-aware formula and measures
-the top B = 36. The returned layout is the cheapest among those
-measurements. `pedpack_no_pedigree_features` is the same budget with the
-blind formula. `analytical_budget` is the same search as PedPack.
-`random_budget` measures 36 random layouts. Oracles measure every layout in
-a family. They are upper bounds. `pedpack_neural` and `pedpack_neural_blind`
-are the network with and without pedigree feature columns. They are not the
-pedigree claim.
+Oracles measure every layout in one family of candidates, or the whole pool.
+They are analysis bounds, not a system a user can run without paying for the
+full measurement. On the selective regimes PedPack's fit objective matches
+the full oracle (ratio 1.000): the formula put the winner inside the budget.
+On the high-duplication regimes the family oracle is more expensive than
+all-samples, and PedPack matches the variant oracle instead. Matching an
+oracle there means the search refused the costly layout.
+
+A kinship encoder and a cost network exist in the code. They are not the
+selector. Reports that do not train the network no longer print a missing
+error as if the network had been scored.
 
 ## 4. Protocol
 
@@ -140,9 +150,16 @@ permuted so that consecutive samples are not a family. Each seed draws its
 own pedigree and its own queries. Seeds are 7, 11, and 19.
 
 A family-centric query names 5–15% of the nuclear families and a window
-covering 20–40% of the variant axis. An extended query starts from one
-nuclear family, adds the parents of its members, and with probability one
-half adds a second family, so the request is not a clean independent trio.
+covering 20–40% of the variant axis. That fraction is a clinical or
+rare-disease request: the affected family, the parents, and sometimes a
+second family that shares a parent, against a variant window rather than a
+genome-wide scan of the biobank. In a cohort of tens to a few hundred
+families, one to a few pedigrees is a few percent to about 15% of the
+families. A QC or allele-frequency pass is the scan share. The boundary is
+the point of the paper. A GWAS-shaped mix is supposed to keep the
+all-samples layout. An extended query starts from one nuclear family, adds
+the parents of its members, and with probability one half adds a second
+family, so the request is not a clean independent trio.
 Held-out queries use different seed families and freshly drawn windows. An
 extended held-out query may still name a parent who also sits in a training
 family. Held-out lists are not in the selection objective.
@@ -257,6 +274,22 @@ duplication 1.45 selects all-samples; the other two still select families,
 with fit ratios 1.018 and 1.001. The search is tracking that cost. It is not
 a failure to notice the pedigree.
 
+The same split survives a larger cohort. `configs/scale.json` draws 180
+founder couples and 8,000 variants. Seeds 7, 11, and 19 have 1,175–1,207
+people and nuclear duplication 1.28–1.30. PedPack again selects families and
+matches the family oracle. The blind ranker selects all-samples. Its fit
+objective is 1.20–1.28× PedPack, and it reads 16.3–17.6× more bytes on
+held-out families. The family layout pays for that with build time (76–79 s
+against 70–71 s) and storage (4.7–4.9 s against 4.2–4.3 s). Query time is
+where it wins (4.4–5.9 s against 6.5–7.8 s). Scan bytes are 1.15–1.17×
+higher for the family layout.
+
+`configs/scale_overlap.json` is the closed side at the same variant count:
+667–685 people, 3 generations, cross rate 0.6, family-oracle duplication
+1.42–1.44. Both rankers select all-samples. The family oracle is more
+expensive (seed 7: 218.7 against 173.1). More samples did not move the
+boundary. Duplication did.
+
 An earlier configuration, 48 bytes per genotype and 256 KB blocks with a
 25% scan share, did not produce this gap. Both rankers kept an all-samples
 layout, and the numbers are in `results/small/`. That run is a different
@@ -275,24 +308,81 @@ A single-host Hadoop 3.2.1 cluster with one NameNode and three DataNodes
 reproduced the byte ranking for the selective regimes and the tie for the
 three-generation pedigrees. Details and the limits of that run are in
 `results/hdfs/report.md`. It is one machine, the client is not a DataNode,
-and there is still no remote-read fraction and no Hail number.
+and there is still no remote-read fraction.
 
-Nothing here is a multi-machine HDFS run, a Hail comparison, or a measurement of
-a real codec. The block model has no NameNode heap, no disk, and no scheduler
-noise. The cohorts are tens of samples, with a byte scale factor so that a
-family tile spans several 64 KB blocks; they are not a terabyte of 1000
-Genomes. A paper that stops at this simulator should not claim a
+Hail 0.2.139 was run in Spark local mode on the same 1,207 × 8,000 matrix,
+seed 7. Two comparisons, both local, neither a cluster.
+
+The first (`results/hail/`) put the family layout in one exploded Table.
+That object is the wrong encoding: 56–58 MB against a 3 MB MatrixTable,
+while nuclear duplication is only 1.30. Query times sat under a second and
+did not reproduce the 16× byte gap.
+
+The second (`results/hail_columnar/`) uses the same integer MatrixTable for
+both sides. The all-samples table is repartitioned into 16 locus partitions
+(18.7 s to build, 3.0 MB). The family side is one MatrixTable per nuclear
+family, 361 tables (937 s to build, 33.9 MB). Duplication is 1.30, so most
+of the extra Hail bytes are per-table overhead. A held-out family query
+returns the same 250,518 entries from both and takes 0.35–1.7 s on the
+MatrixTable against 7.1–8.1 s on the 18 family tables. The scan takes 0.55 s
+against 169 s. That run is a naive object model: one table per nuclear
+family, 361 objects, where the search packed those groups 32 to a file.
+It is not evidence about the layout. It is evidence that Hail plans each
+table separately, and that cost dominates a 3 MB matrix.
+
+The pack the search actually chose is measured in Parquet
+(`results/parquet/`). Seed 7, Zstandard, row groups of 800 variants, 32
+nuclear groups per file, 12 files. Build is 1.69 s and 4.54 MB for the
+all-samples file, 1.28 s and 5.99 MB for the packed files (1.32×, next to
+duplication 1.30). Held-out compressed bytes are 84.3 KB against 85.2 KB.
+The packed read is slower (0.098 s against 0.037 s) because it opens 8–10
+files. The scan reads 1.30× the bytes, which is the duplication. Column
+projection already returns the named samples from the single file, so there
+is no 16× byte gap left for packing to win. The simulator's gap is the gap
+of an opaque block: a tile that contains the whole cohort cannot be trimmed
+to a family. A columnar file can.
+
+Nothing here is a multi-node HDFS run.
+This host has 16 GB of RAM; four isolated virtual machines were not started.
+The block model has no NameNode heap, no disk, and no scheduler noise. The
+scaled cohorts are about 1,200 people and 8,000 variants, with a byte scale
+factor so that a family tile spans several 64 KB blocks. They are not a
+terabyte of 1000 Genomes. A paper that stops at this simulator, this
+single-host Hadoop, and this local Hail timing should not claim a
 distributed-systems speedup. The protocol those runs have to follow is in
-`docs/evaluation.md`: the same queries, the generic two-dimensional baseline,
-the fixed family heuristic, the blind ranker, build and storage in the
-objective, and a held-out family set. Hail, if it is compared, has to be
-run. This repository does not contain a Hail number.
+`docs/evaluation.md`.
 
-## 7. Where the code matches the text
+## 7. Related work
+
+CoHadoop (Eltabakh et al., PVLDB 2011) co-locates HDFS blocks that share a
+locator so a join can avoid a shuffle. PedPack also co-locates related
+records. The unit is a genotype tile, the relatedness is the pedigree, and
+the cost is allowed to refuse the co-location when scans and duplication
+make it expensive. CoHadoop does not choose tile shape.
+
+Trojan layouts (Jindal, Quiane-Ruiz, Dittrich, PVLDB 2011) pick a column
+layout per HDFS block for a declared workload. The search here is that idea
+on the sample axis of a matrix, with overlapping groups billed as extra
+bytes rather than as a join key.
+
+A Hail MatrixTable is partitioned by locus interval. Filtering to a few
+samples still reads every sample in the opened partitions. That is the
+all-samples layout in this paper. ADAM (Massie et al., UCB/EECS-2013-207)
+and Glow put reads and variants on Spark in the same locus-major shape.
+They standardize the schema. They do not search a pedigree cost.
+
+TileDB (Papadopoulos et al., PVLDB 2016) stores a dense array as tiles whose
+shape is chosen by the user. PedPack is a policy for the sample side of a
+dosage matrix when some queries name families and the groups overlap. The
+array store does not supply that policy.
+
+## 8. Where the code matches the text
 
 `src/pedpack/study.py` is the protocol. `cost.py` is the formula, including
-the blind ranker. `simulator.py` is the measurement. `workloads.py` builds
-the family-centric, extended, and held-out queries. `models.py` is the
-encoder and the secondary network. `selector.py` is the budget.
-`configs/pedigree_gap.json` is the run behind Section 5.
+the blind ranker. `boundary.py` is the two-layout tradeoff.
+`simulator.py` is the measurement. `workloads.py` builds the family-centric,
+extended, and held-out queries. `selector.py` is the budget. The encoder and
+the cost network in `models.py` are not the selector.
+`configs/pedigree_gap.json` is the locked small-cohort run. `configs/scale.json`
+is the 1,200-person run.
 `results/pedigree/report.md` is the table this draft was written from.

@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 plot = ["matplotlib>=3.8"]
+parquet = ["pyarrow>=15"]
 
 [build-system]
 requires = ["setuptools>=68"]

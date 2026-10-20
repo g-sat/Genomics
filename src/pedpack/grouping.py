@@ -84,10 +84,66 @@ def agglomerate(
     n = int(kinship.shape[0])
     if max_size < 1:
         raise ValueError("max_size must be positive")
-    clusters: list[list[int]] = [[i] for i in range(n)]
-    means: list[np.ndarray | None] = [None] * n
     if embeddings is not None and lam != 0.0:
-        means = [embeddings[i].copy() for i in range(n)]
+        return _agglomerate_with_embeddings(kinship, max_size, min_kinship, embeddings, lam)
+    return _agglomerate_kinship(kinship, max_size, min_kinship)
+
+
+def _agglomerate_kinship(
+    kinship: np.ndarray,
+    max_size: int,
+    min_kinship: float,
+) -> list[list[int]]:
+    """Average-linkage merges. The score update is the size-weighted mean.
+
+    On dyadic kinship values this matches recomputing the block mean. The
+    first maximum in row-major order of the upper triangle is the same pair
+    the nested scan used to keep: smaller index first, and a strict improvement
+    over ``min_kinship``.
+    """
+
+    n = int(kinship.shape[0])
+    members: list[list[int]] = [[i] for i in range(n)]
+    sizes = np.ones(n, dtype=np.int32)
+    alive = np.ones(n, dtype=bool)
+    score = np.array(kinship, dtype=np.float64, copy=True)
+    np.fill_diagonal(score, -np.inf)
+
+    while int(alive.sum()) > 1:
+        masked = score.copy()
+        too_big = (sizes[:, None] + sizes[None, :]) > max_size
+        masked[too_big] = -np.inf
+        masked[~alive, :] = -np.inf
+        masked[:, ~alive] = -np.inf
+        masked[np.tril_indices(n)] = -np.inf
+        flat = int(np.argmax(masked))
+        a, b = divmod(flat, n)
+        best = float(masked[a, b])
+        if not np.isfinite(best) or best <= min_kinship:
+            break
+        others = np.flatnonzero(alive)
+        others = others[(others != a) & (others != b)]
+        na = float(sizes[a])
+        nb = float(sizes[b])
+        updated = (na * score[a, others] + nb * score[b, others]) / (na + nb)
+        score[a, others] = updated
+        score[others, a] = updated
+        members[a].extend(members[b])
+        sizes[a] = int(na + nb)
+        alive[b] = False
+    return [sorted(members[i]) for i in range(n) if alive[i]]
+
+
+def _agglomerate_with_embeddings(
+    kinship: np.ndarray,
+    max_size: int,
+    min_kinship: float,
+    embeddings: np.ndarray,
+    lam: float,
+) -> list[list[int]]:
+    n = int(kinship.shape[0])
+    clusters: list[list[int]] = [[i] for i in range(n)]
+    means: list[np.ndarray] = [embeddings[i].copy() for i in range(n)]
 
     while len(clusters) > 1:
         best: tuple[int, int] | None = None
@@ -97,8 +153,7 @@ def agglomerate(
                 if len(clusters[a]) + len(clusters[b]) > max_size:
                     continue
                 score = _cross_kinship(kinship, clusters[a], clusters[b])
-                if means[a] is not None and means[b] is not None:
-                    score += lam * _cosine(means[a], means[b])  # type: ignore[arg-type]
+                score += lam * _cosine(means[a], means[b])
                 if score > best_score:
                     best_score = score
                     best = (a, b)
@@ -106,10 +161,9 @@ def agglomerate(
             break
         a, b = best
         clusters[a] = clusters[a] + clusters[b]
-        if means[a] is not None and means[b] is not None:
-            wa = float(len(clusters[a]) - len(clusters[b]))
-            wb = float(len(clusters[b]))
-            means[a] = (means[a] * wa + means[b] * wb) / (wa + wb)  # type: ignore[operator]
+        wa = float(len(clusters[a]) - len(clusters[b]))
+        wb = float(len(clusters[b]))
+        means[a] = (means[a] * wa + means[b] * wb) / (wa + wb)
         del clusters[b]
         del means[b]
     return [sorted(c) for c in clusters]

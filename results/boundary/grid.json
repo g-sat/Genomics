@@ -1,0 +1,618 @@
+{
+  "surface": [
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.05,
+      "ratio": 1.2963818802563898,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.1,
+      "ratio": 1.2617928114106467,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.15,
+      "ratio": 1.2284913103517507,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.2,
+      "ratio": 1.1982932478894113,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.3,
+      "ratio": 1.140102453638501,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.4,
+      "ratio": 1.0880075351855658,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.5,
+      "ratio": 1.039819719037456,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.05,
+      "family_fraction": 0.6,
+      "ratio": 1.020194970868903,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.05,
+      "ratio": 1.2413696225641326,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.1,
+      "ratio": 1.2085274318555457,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.15,
+      "ratio": 1.1766000679986812,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.2,
+      "ratio": 1.147100931322219,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.3,
+      "ratio": 1.0916167171530489,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.4,
+      "ratio": 1.0412523034961536,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.5,
+      "ratio": 0.9953302997785605,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.1,
+      "family_fraction": 0.6,
+      "ratio": 0.9761957067614248,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.05,
+      "ratio": 1.1903247381515027,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.1,
+      "ratio": 1.1587914324721402,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.15,
+      "ratio": 1.1284552321606374,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.2,
+      "ratio": 1.1001180771241887,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.3,
+      "ratio": 1.0464461267319491,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.4,
+      "ratio": 0.9983620493975726,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.5,
+      "ratio": 0.9539593733291047,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.15,
+      "family_fraction": 0.6,
+      "ratio": 0.9358453855199748,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.05,
+      "ratio": 1.1446109805118092,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.1,
+      "ratio": 1.1137119801166007,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.15,
+      "ratio": 1.0845197973094631,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.2,
+      "ratio": 1.0568188743379103,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.3,
+      "ratio": 1.0054559435501644,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.4,
+      "ratio": 0.9588542363214133,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.5,
+      "ratio": 0.9163810464130322,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.2,
+      "family_fraction": 0.6,
+      "ratio": 0.8986885555025445,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.05,
+      "ratio": 1.1010738301124892,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.1,
+      "ratio": 1.0713371362194408,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.15,
+      "ratio": 1.0428348954304356,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.2,
+      "ratio": 1.0168115510804203,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.3,
+      "ratio": 0.9670089611524626,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.4,
+      "ratio": 0.9223645787363465,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.5,
+      "ratio": 0.8811968858773482,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.25,
+      "family_fraction": 0.6,
+      "ratio": 0.8643786712304063,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.05,
+      "ratio": 1.0611334806008896,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.1,
+      "ratio": 1.0326917775045263,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.15,
+      "ratio": 1.0052024697558772,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.2,
+      "ratio": 0.9797111536590862,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.3,
+      "ratio": 0.9319014202214003,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.4,
+      "ratio": 0.888540784880087,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.5,
+      "ratio": 0.8490358203022947,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.3,
+      "family_fraction": 0.6,
+      "ratio": 0.8325837810153348,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.05,
+      "ratio": 1.0234529712662237,
+      "family_wins": true
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.1,
+      "ratio": 0.9960071710461483,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.15,
+      "ratio": 0.9697100379077676,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.2,
+      "ratio": 0.9450988370422627,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.3,
+      "ratio": 0.8986593427961451,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.4,
+      "ratio": 0.857007985973844,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.5,
+      "ratio": 0.818646414319944,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.35,
+      "family_fraction": 0.6,
+      "ratio": 0.8029554733242978,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.05,
+      "ratio": 0.98958855560058,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.1,
+      "ratio": 0.9626602689716713,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.15,
+      "ratio": 0.9372202349032946,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.2,
+      "ratio": 0.9130901798550825,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.3,
+      "ratio": 0.8683750997102996,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.4,
+      "ratio": 0.8278350611441248,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.5,
+      "ratio": 0.7909114101981702,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.4,
+      "family_fraction": 0.6,
+      "ratio": 0.7755376122920172,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.05,
+      "ratio": 0.9569694787677416,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.1,
+      "ratio": 0.930923408649637,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.15,
+      "ratio": 0.9060088744057601,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.2,
+      "ratio": 0.8831488690949904,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.3,
+      "ratio": 0.8396175963069449,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.4,
+      "ratio": 0.80055840947229,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.5,
+      "ratio": 0.7646227075738636,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.45,
+      "family_fraction": 0.6,
+      "ratio": 0.74990889155893,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.05,
+      "ratio": 0.9265691899069954,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.1,
+      "ratio": 0.9015238517994261,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.15,
+      "ratio": 0.8773912031798211,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.2,
+      "ratio": 0.8549528491202344,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.3,
+      "ratio": 0.8129570390608528,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.4,
+      "ratio": 0.7748937797545026,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.5,
+      "ratio": 0.7402354021220728,
+      "family_wins": false
+    },
+    {
+      "duplication": 1.5,
+      "family_fraction": 0.6,
+      "ratio": 0.7258074413427521,
+      "family_wins": false
+    }
+  ],
+  "checks": [
+    {
+      "seed": 7,
+      "pedigree": "two_gen",
+      "n_samples": 157,
+      "duplication": 1.3184713375796178,
+      "family_fraction": 0.05,
+      "variant_objective": 8.138923756,
+      "family_objective": 7.265998385804955,
+      "ratio_variant_over_family": 1.120138393080353,
+      "family_wins": true
+    },
+    {
+      "seed": 11,
+      "pedigree": "two_gen",
+      "n_samples": 139,
+      "duplication": 1.2589928057553956,
+      "family_fraction": 0.05,
+      "variant_objective": 6.973755047026087,
+      "family_objective": 5.975250851439868,
+      "ratio_variant_over_family": 1.1671066571783522,
+      "family_wins": true
+    },
+    {
+      "seed": 7,
+      "pedigree": "two_gen",
+      "n_samples": 157,
+      "duplication": 1.3184713375796178,
+      "family_fraction": 0.15,
+      "variant_objective": 8.454948997599999,
+      "family_objective": 7.549613797797582,
+      "ratio_variant_over_family": 1.119918081116484,
+      "family_wins": true
+    },
+    {
+      "seed": 11,
+      "pedigree": "two_gen",
+      "n_samples": 139,
+      "duplication": 1.2589928057553956,
+      "family_fraction": 0.15,
+      "variant_objective": 7.041978432626086,
+      "family_objective": 6.251669538755953,
+      "ratio_variant_over_family": 1.1264156540858044,
+      "family_wins": true
+    },
+    {
+      "seed": 7,
+      "pedigree": "two_gen",
+      "n_samples": 157,
+      "duplication": 1.3184713375796178,
+      "family_fraction": 0.4,
+      "variant_objective": 8.2181215544,
+      "family_objective": 8.194239256997582,
+      "ratio_variant_over_family": 1.0029145228316372,
+      "family_wins": true
+    },
+    {
+      "seed": 11,
+      "pedigree": "two_gen",
+      "n_samples": 139,
+      "duplication": 1.2589928057553956,
+      "family_fraction": 0.4,
+      "variant_objective": 7.013098355826087,
+      "family_objective": 6.695429632300396,
+      "ratio_variant_over_family": 1.0474456070739926,
+      "family_wins": true
+    },
+    {
+      "seed": 7,
+      "pedigree": "three_gen",
+      "n_samples": 147,
+      "duplication": 1.4489795918367347,
+      "family_fraction": 0.05,
+      "variant_objective": 7.537355938980822,
+      "family_objective": 8.449542912596865,
+      "ratio_variant_over_family": 0.8920430391262794,
+      "family_wins": false
+    },
+    {
+      "seed": 11,
+      "pedigree": "three_gen",
+      "n_samples": 102,
+      "duplication": 1.3333333333333333,
+      "family_fraction": 0.05,
+      "variant_objective": 4.862723548895049,
+      "family_objective": 4.671595779345725,
+      "ratio_variant_over_family": 1.040912737012553,
+      "family_wins": true
+    },
+    {
+      "seed": 7,
+      "pedigree": "three_gen",
+      "n_samples": 147,
+      "duplication": 1.4489795918367347,
+      "family_fraction": 0.15,
+      "variant_objective": 7.060027350180823,
+      "family_objective": 8.658935394459185,
+      "ratio_variant_over_family": 0.8153458859039997,
+      "family_wins": false
+    },
+    {
+      "seed": 11,
+      "pedigree": "three_gen",
+      "n_samples": 102,
+      "duplication": 1.3333333333333333,
+      "family_fraction": 0.15,
+      "variant_objective": 4.873849923295049,
+      "family_objective": 4.852771593663553,
+      "ratio_variant_over_family": 1.0043435651616117,
+      "family_wins": true
+    },
+    {
+      "seed": 7,
+      "pedigree": "three_gen",
+      "n_samples": 147,
+      "duplication": 1.4489795918367347,
+      "family_fraction": 0.4,
+      "variant_objective": 7.820607036580822,
+      "family_objective": 9.60380901346462,
+      "ratio_variant_over_family": 0.8143234653684039,
+      "family_wins": false
+    },
+    {
+      "seed": 11,
+      "pedigree": "three_gen",
+      "n_samples": 102,
+      "duplication": 1.3333333333333333,
+      "family_fraction": 0.4,
+      "variant_objective": 4.872701814495049,
+      "family_objective": 5.392598230653608,
+      "ratio_variant_over_family": 0.903590737911223,
+      "family_wins": false
+    }
+  ]
+}

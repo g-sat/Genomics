@@ -31,6 +31,92 @@ tiles win the selective queries by enough to pay for the extra copies. Around
 duplication 1.4, the extra copies cost more than those queries save, and both
 rankers leave the family layout.
 
+## Same boundary at 600–1,200 samples
+
+`configs/scale.json` keeps the locked cost model and the 5% family queries.
+It draws 180 founder couples, 2 generations, and 8,000 variants. Seeds 7, 11,
+and 19 produce 1,207, 1,175, and 1,176 people. Nuclear duplication is
+1.28–1.30. PedPack selects nuclear families and matches the family oracle.
+The no-pedigree ranker selects all-samples. Fit objectives without pedigree
+features are 1.20×, 1.22×, and 1.28× PedPack. Held-out family bytes are
+16.3×, 16.7×, and 17.6×. Scan bytes go the other way, 1.15–1.17×, because
+the family layout stores the overlapping parents twice.
+
+The fit objective already contains build, storage, and query time. On these
+three seeds the family layout costs more to build and more to store, and
+less to query:
+
+| Seed | People | PedPack build / storage / query (s) | No-pedigree build / storage / query (s) |
+| ---: | ---: | --- | --- |
+| 7 | 1207 | 79.25 / 4.90 / 5.72 | 71.41 / 4.26 / 7.81 |
+| 11 | 1175 | 76.77 / 4.74 / 5.89 | 69.51 / 4.15 / 7.81 |
+| 19 | 1176 | 76.32 / 4.70 / 4.35 | 69.57 / 4.15 / 6.53 |
+
+`configs/scale_overlap.json` is the other side of the boundary at the same
+variant count: 80 founder couples, 3 generations, cross rate 0.6. The draws
+have 667, 675, and 685 people. Family-oracle duplication is 1.42–1.44, and
+that oracle is more expensive than all-samples (seed 7: 218.7 vs 173.1).
+Both rankers select all-samples. The gap closes for the same reason it
+closed on the 70–100 person pedigrees.
+
+## The two-layout surface
+
+`family_versus_variant` is that trade-off with the search removed. At 1,200
+samples and 8,000 variants the all-samples objective divided by the family
+objective is 1.06 at duplication 1.30 and a 5% family query, 0.97 at
+duplication 1.43 and the same query, and 0.83 at duplication 1.30 and a 60%
+family query. Family tiles win on 32 of the 80 cells. The picture is
+`results/boundary/heatmap.png`.
+
+Simulator checks of only those two layouts, at 1,600 variants, agree on the
+sign in 8 of 12 draws. The four misses are all the same direction: the
+formula has already switched to all-samples, and the simulator still picks
+nuclear families, by 12% at one 15% query and by 0.3–4.7% at 40%. The
+formula is early on that edge. It does not invent a family win the
+simulator rejects.
+
+## Hail, one virtual machine
+
+`results/hail/report.md` is the first local-mode run. The family object
+there is an exploded Table, and it is about 20× the MatrixTable even though
+duplication is 1.30. That comparison prices the encoding.
+
+`results/hail_columnar/report.md` is the fairer one, seed 7 only. Both sides
+are integer MatrixTables. The all-samples table has 16 locus partitions,
+builds in 18.7 s, and occupies 3.0 MB. The family side is 361 MatrixTables,
+builds in 937 s, and occupies 33.9 MB. A held-out query that returns 250,518
+entries takes 0.35–1.7 s on the single table and 7.1–8.1 s across the 18
+covering family tables. The scan takes 0.55 s against 169 s. The simulator
+still prefers the family layout on bytes, because a file open is 1 ms there.
+Hail's cost at this size is the Spark job, and the many small tables lose.
+
+The first run's numbers, kept so the encoding effect stays visible:
+
+| Seed | MatrixTable build s | Family build s | MatrixTable bytes | Family bytes | Held-out MatrixTable s | Held-out family s |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 7 | 12.8 | 131.5 | 2.96e6 | 5.80e7 | 0.718 | 0.359 |
+| 11 | 4.6 | 118.8 | 2.88e6 | 5.60e7 | 0.429 | 0.348 |
+| 19 | 4.4 | 123.9 | 2.89e6 | 5.57e7 | 0.355 | 0.361 |
+
+The family table is about 20× larger than the MatrixTable. Nuclear
+duplication is only 1.28–1.30, so the extra bytes are the exploded row
+encoding, not the extra parent copies. Held-out query means favor the
+family key on seeds 7 and 11 and tie on seed 19. Individual queries cross,
+and every query finishes in under a second. The scan is not consistently
+slower for the family table (seed 11: 0.66 s against 0.89 s). At this size
+Hail's MatrixTable is the better full-cost object, and the simulator's
+16× selective-byte gap is not visible in the Spark timings.
+
+## Packed Parquet, the layout the search chose
+
+`results/parquet/report.md` is seed 7 again, Zstandard, 32 groups per file,
+12 files. That is `count:32`, not one object per family. Build is 1.69 s /
+4.54 MB for all-samples and 1.28 s / 5.99 MB for the packed files. Held-out
+compressed bytes are 84.3 KB against 85.2 KB. Packed queries are slower
+because they open 8–10 files. The scan is 1.30× the bytes. Column projection
+on the single file already skips the people the query did not name, which is
+the saving the opaque-tile simulator was charging the all-samples layout for.
+
 ## HDFS, one host
 
 `results/hdfs/report.md` is a Hadoop 3.2.1 cluster of one NameNode and three
@@ -40,4 +126,5 @@ the all-samples layout, and the NameNode mapped those reads onto about 6–8
 blocks instead of 75–93. On the three-generation overlap regime the two
 layouts are the same all-samples files, and the bytes match. The client is
 not a DataNode, so this run has no remote-read fraction. It is not three
-separate machines, and it does not include Hail.
+separate machines. The compose project was stopped after that measurement.
+Hail is the local-mode run above, not a job on this Hadoop cluster.

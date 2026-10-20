@@ -173,11 +173,14 @@ formula's first place if measurement disagrees.
 `analytical_budget` is the same search as `pedpack`. `random_budget` measures
 `B` random layouts.
 
-The neural selector is a secondary experiment (`pedpack_neural`). It measures
-a stratified pilot of about `B/2` layouts, fits the network, predicts the
-rest, and measures the best remainder until `B` measurements are used.
-`pedpack_neural_blind` zeroes the pedigree feature columns. The network is
-not the method the pedigree claim rests on.
+The reported studies do not train a cost network. The code can still fit one
+(`pedpack_neural`) on a stratified pilot, but that network is not the
+selector and it is not part of the pedigree claim. A report that skips it
+says so, instead of printing a missing error as a score.
+
+`family_versus_variant` in `boundary.py` is the same objective reduced to
+all-samples versus nuclear families. It is the map of duplication against
+the fraction of families a query names.
 
 Oracles measure every layout in a family. They are upper bounds.
 `full_oracle` is the best layout in the whole pool on the fit mix.

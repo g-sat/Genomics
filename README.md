@@ -16,9 +16,10 @@ the network for the final choice.
 
 The measurement in this repository is a block simulator: file offsets, block
 boundaries, replica placement, and a failed DataNode. It is the right place to
-debug the cost model. It is not a stand-in for a multi-node HDFS run or for
-Hail. `docs/evaluation.md` says which of those runs are still required before
-the systems claim can be made at full strength.
+debug the cost model. It is not a stand-in for a multi-node HDFS run.
+`results/hail/` is Hail 0.2.139 in local mode on the scaled matrices, and
+`docs/evaluation.md` says which runs are still required before the systems
+claim can be made at full strength.
 
 ## Layout
 

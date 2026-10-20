@@ -1,0 +1,220 @@
+{
+  "seeds": [
+    {
+      "seed": 7,
+      "n_samples": 1207,
+      "n_variants": 8000,
+      "n_nuclear_groups": 361,
+      "duplication": 1.2999171499585749,
+      "tsv_seconds": 1.171091327999875,
+      "default_write_seconds": 12.771522215000005,
+      "family_write_seconds": 131.521209065,
+      "default_bytes": 2962103,
+      "family_bytes": 57985834,
+      "n_partitions": 1,
+      "family_partitions": 64,
+      "queries": [
+        {
+          "name": "hold-fam-0",
+          "workload": "heldout_family",
+          "n_samples": 86,
+          "n_variants": 2913,
+          "n_groups": 18,
+          "hail_entries": 250518,
+          "hail_seconds": 0.938723156999913,
+          "family_entries": 250518,
+          "family_seconds": 0.3235456110000996
+        },
+        {
+          "name": "hold-fam-1",
+          "workload": "heldout_family",
+          "n_samples": 71,
+          "n_variants": 2907,
+          "n_groups": 18,
+          "hail_entries": 206397,
+          "hail_seconds": 0.6693056720000641,
+          "family_entries": 209304,
+          "family_seconds": 0.3885794579998674
+        },
+        {
+          "name": "hold-fam-2",
+          "workload": "heldout_family",
+          "n_samples": 74,
+          "n_variants": 2103,
+          "n_groups": 18,
+          "hail_entries": 155622,
+          "hail_seconds": 0.8535534180000468,
+          "family_entries": 157725,
+          "family_seconds": 0.3916220460000659
+        },
+        {
+          "name": "hold-fam-3",
+          "workload": "heldout_family",
+          "n_samples": 78,
+          "n_variants": 1677,
+          "n_groups": 18,
+          "hail_entries": 130806,
+          "hail_seconds": 0.40956881100009923,
+          "family_entries": 132483,
+          "family_seconds": 0.33067285699985405
+        },
+        {
+          "name": "scan-0",
+          "workload": "scan",
+          "n_samples": 1207,
+          "n_variants": 4425,
+          "n_groups": 361,
+          "hail_entries": 5340975,
+          "hail_seconds": 0.5457793250000122,
+          "family_entries": 6942825,
+          "family_seconds": 0.7938720399999966
+        }
+      ],
+      "engine": "hail 0.2.139-5e5eedb87ff8 local[2]"
+    },
+    {
+      "seed": 11,
+      "n_samples": 1175,
+      "n_variants": 8000,
+      "n_nuclear_groups": 351,
+      "duplication": 1.291063829787234,
+      "tsv_seconds": 1.0981824330001473,
+      "default_write_seconds": 4.618276793999939,
+      "family_write_seconds": 118.79144650199987,
+      "default_bytes": 2882511,
+      "family_bytes": 55997500,
+      "n_partitions": 1,
+      "family_partitions": 64,
+      "queries": [
+        {
+          "name": "hold-fam-0",
+          "workload": "heldout_family",
+          "n_samples": 76,
+          "n_variants": 1952,
+          "n_groups": 18,
+          "hail_entries": 148352,
+          "hail_seconds": 0.4081749590000072,
+          "family_entries": 150304,
+          "family_seconds": 0.3134469409999383
+        },
+        {
+          "name": "hold-fam-1",
+          "workload": "heldout_family",
+          "n_samples": 80,
+          "n_variants": 2134,
+          "n_groups": 18,
+          "hail_entries": 170720,
+          "hail_seconds": 0.3884602499999801,
+          "family_entries": 172854,
+          "family_seconds": 0.3596639010002036
+        },
+        {
+          "name": "hold-fam-2",
+          "workload": "heldout_family",
+          "n_samples": 76,
+          "n_variants": 1710,
+          "n_groups": 18,
+          "hail_entries": 129960,
+          "hail_seconds": 0.4973948740000651,
+          "family_entries": 131670,
+          "family_seconds": 0.343251139999893
+        },
+        {
+          "name": "hold-fam-3",
+          "workload": "heldout_family",
+          "n_samples": 76,
+          "n_variants": 2253,
+          "n_groups": 18,
+          "hail_entries": 171228,
+          "hail_seconds": 0.42255256499993266,
+          "family_entries": 171228,
+          "family_seconds": 0.3761632139999165
+        },
+        {
+          "name": "scan-0",
+          "workload": "scan",
+          "n_samples": 1175,
+          "n_variants": 6614,
+          "n_groups": 351,
+          "hail_entries": 7771450,
+          "hail_seconds": 0.894127416000174,
+          "family_entries": 10033438,
+          "family_seconds": 0.6560621569999512
+        }
+      ],
+      "engine": "hail 0.2.139-5e5eedb87ff8 local[2]"
+    },
+    {
+      "seed": 19,
+      "n_samples": 1176,
+      "n_variants": 8000,
+      "n_nuclear_groups": 345,
+      "duplication": 1.280612244897959,
+      "tsv_seconds": 1.0024038059998475,
+      "default_write_seconds": 4.381783219999988,
+      "family_write_seconds": 123.88279259499996,
+      "default_bytes": 2887379,
+      "family_bytes": 55702898,
+      "n_partitions": 1,
+      "family_partitions": 64,
+      "queries": [
+        {
+          "name": "hold-fam-0",
+          "workload": "heldout_family",
+          "n_samples": 71,
+          "n_variants": 2427,
+          "n_groups": 17,
+          "hail_entries": 172317,
+          "hail_seconds": 0.32726236999997127,
+          "family_entries": 177171,
+          "family_seconds": 0.6447884520000571
+        },
+        {
+          "name": "hold-fam-1",
+          "workload": "heldout_family",
+          "n_samples": 75,
+          "n_variants": 2226,
+          "n_groups": 17,
+          "hail_entries": 166950,
+          "hail_seconds": 0.35939771100015605,
+          "family_entries": 166950,
+          "family_seconds": 0.22948642300002575
+        },
+        {
+          "name": "hold-fam-2",
+          "workload": "heldout_family",
+          "n_samples": 69,
+          "n_variants": 2965,
+          "n_groups": 17,
+          "hail_entries": 204585,
+          "hail_seconds": 0.28515369500019005,
+          "family_entries": 204585,
+          "family_seconds": 0.38405321100003675
+        },
+        {
+          "name": "hold-fam-3",
+          "workload": "heldout_family",
+          "n_samples": 74,
+          "n_variants": 1727,
+          "n_groups": 17,
+          "hail_entries": 127798,
+          "hail_seconds": 0.4464924819999396,
+          "family_entries": 127798,
+          "family_seconds": 0.1847903159998623
+        },
+        {
+          "name": "scan-0",
+          "workload": "scan",
+          "n_samples": 1176,
+          "n_variants": 6452,
+          "n_groups": 345,
+          "hail_entries": 7587552,
+          "hail_seconds": 0.4198836929999743,
+          "family_entries": 9716712,
+          "family_seconds": 0.8876779049999186
+        }
+      ],
+      "engine": "hail 0.2.139-5e5eedb87ff8 local[2]"
+    }
+  ]
+}

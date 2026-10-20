@@ -79,11 +79,11 @@ They are not optional polish.
 
 | Gap | Why it matters |
 | --- | --- |
-| Real multi-node HDFS, not a placement model | NameNode memory, scheduling noise, and disk behavior are not in the simulator |
+| Real multi-node HDFS, not a placement model | NameNode memory, scheduling noise, and disk behavior are not in the simulator. The compose file is one host. This machine has 16 GB of RAM and was not given 4–8 isolated VMs |
 | Cluster of 4, 8, 16 DataNodes on separate machines | The sensitivity pass only reassigns replicas in the model |
-| Data at tens of GB and above | Small-file and block-roundup effects need files that span many blocks for reasons other than the byte scale factor |
+| Data at tens of GB and above | The scaled simulator is 1,175–1,207 samples and 8,000 variants. That is not tens of GB. Small-file and block-roundup effects still need files that span many blocks for reasons other than the byte scale factor |
 | Public genotypes plus pedigree | 1000 Genomes pedigrees, or a cohort you can legally store. `parse_ped` and `load_dosage_npy` are the loaders. Dosages in the current study are simulated on the pedigree |
-| Hail on the same queries | MatrixTable partitioned by locus, and a family-keyed table if you build one. Report runtime, bytes read, and shuffle from the Hail log. Do not cite a number this repository did not produce |
+| Hail or Parquet on a matrix large enough that file-open cost is not the result | `results/hail_columnar/` is one MatrixTable per family and is not the layout. `results/parquet/` is the 12-file pack. Column projection ties the selective bytes. The 16× gap is the opaque-tile model |
 | A real codec | Replace `payload_bytes` with measured compressed sizes. The kinship term is a hypothesis about PBWT-style compression, not a measurement of it |
 | Failure of one or two DataNodes on the real cluster | The simulator has a failed-node switch. The hardware experiment is still open |
 

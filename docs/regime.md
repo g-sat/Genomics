@@ -81,5 +81,7 @@ Stress tests that start from this config and change one factor are in
 `results/stress/summary.md`. Selectivity of 5%, 15%, and 40%, and a 50/50
 scan/family mix, keep the gap on seeds 7, 11, and 19. Three-generation
 pedigrees with duplication around 1.4 do not: both rankers then select the
-all-samples layout, and that layout is the exhaustive winner. A real HDFS
+all-samples layout, and that layout is the exhaustive winner. The same
+split, at 1,175–1,207 people and at 667–685 people, is in
+`results/scale/` and `results/scale_overlap/`. A real multi-node HDFS
 measurement is not this result. The neural ranker is not the method.
