@@ -2,14 +2,17 @@
 
 ## Abstract
 
-We choose tile width, sample grouping, and file packing for a genotype matrix
-whose queries mix full scans with family-scoped hereditary lookups. The
-objective adds build time, replicated storage, and expected query time. The
-selector that we call PedPack ranks candidate layouts with a closed-form cost
-model that can see which samples share a group, then keeps the cheapest layout
-a block simulator measures inside a fixed budget. A second ranker sees the
-same group sizes and the same packing, and does not see who is related to
-whom.
+PedPack is a storage policy for an opaque block engine: HDFS, or any blob
+store that returns a byte range and cannot project a named sample out of a
+tile. It chooses tile width, sample grouping, and file packing for a genotype
+matrix whose queries mix full scans with family-scoped hereditary lookups.
+The objective adds build time, replicated storage, and expected query time.
+The selector ranks candidate layouts with a closed-form cost model that can
+see which samples share a group, then keeps the cheapest layout a block
+simulator measures inside a fixed budget. A second ranker sees the same group
+sizes and the same packing, and does not see who is related to whom. Hail
+and Parquet are the check that this policy does not transfer to a columnar
+engine, which can already return the named samples from one file.
 
 On 2-generation pedigrees the nuclear layout stores each overlapping person
 about 1.21–1.30 times. From 58 people through about 3,370, with family queries
@@ -360,14 +363,27 @@ duplication 1.30). Held-out compressed bytes are 84.3 KB against 85.2 KB.
 The packed read is slower (0.098 s against 0.037 s) because it opens 8–10
 files. The scan reads 1.30× the bytes, which is the duplication. Column
 projection already returns the named samples from the single file, so there
-is no 16× byte gap left for packing to win. The simulator's gap is the gap
-of an opaque block: a tile that contains the whole cohort cannot be trimmed
-to a family. A columnar file can.
+is no 16× byte gap left for packing to win.
+
+`results/parquet_unified/` puts those same duplicated columns into one
+file. On its own held-out draw the 12-file pack takes 0.106 s and 185,808
+compressed bytes. The one-file pack, still row groups of 800 variants,
+takes 0.063 s and the same 185,808 bytes. All-samples on that draw is
+0.058 s and 181,150 bytes. One footer removes the file-open gap. The
+selective bytes stay within about 3% of projecting the all-samples file,
+which is the duplicated people the cover still reads, not a 16× tile.
+A single row group over all 8,000 variants is faster still (0.031 s) and
+reads more of each column (236,387 bytes), because the window can no
+longer skip. On this matrix the row-group footer is a large part of a
+4–6 MB file of one-byte alleles. The opaque-block gap is still the gap
+of a reader that cannot name a column.
 
 Nothing here is a multi-node HDFS run.
 This host has 16 GB of RAM; four isolated virtual machines were not started.
-The block model has no NameNode heap, no disk, and no scheduler noise. The
-scaled cohorts are about 1,200 people and 8,000 variants, with a byte scale
+The AWS, GCP, and Azure command-line tools are not installed on it, so an
+EMR or Dataproc cluster was not started either. The block model has no
+NameNode heap, no disk, and no scheduler noise. The
+scaled cohorts run from about 1,200 people to about 3,370, at 8,000 variants, with a byte scale
 factor so that a family tile spans several 64 KB blocks. They are not a
 terabyte of 1000 Genomes. A paper that stops at this simulator, this
 single-host Hadoop, and this local Hail timing should not claim a

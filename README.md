@@ -25,12 +25,18 @@ claim can be made at full strength.
 
 ```
 configs/          study settings
+data/pedigrees/   public pedigrees used as input
+deploy/           one-host HDFS compose file
 docs/             method, protocol, reproduction
-experiments/      study driver
+experiments/      study and measurement drivers
 src/pedpack/      library
 tests/            invariants
-results/          generated reports (not source)
+results/          reports, figures, and measurement JSON
 ```
+
+Parquet files, HDFS part files, the generated PDF, and Hail session logs are
+local build output. They are listed in `.gitignore`. The reports that cite
+their numbers stay in `results/`.
 
 | Module | Role |
 | --- | --- |

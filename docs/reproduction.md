@@ -76,6 +76,7 @@ family is the naive object counted in `results/hail_columnar/`. The pack of
 
 ```bash
 python experiments/measure_parquet.py
+python experiments/measure_parquet_unified.py
 ```
 
 The larger simulator cohort and the Zstandard kinship check are:

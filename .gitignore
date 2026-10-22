@@ -10,5 +10,19 @@ build/
 venv/
 *.pt
 .DS_Store
-results/transfer/**/part-*
+Thumbs.db
+
+# Hail writes session logs in the working directory. They are not results.
 hail-*.log
+logs/
+
+# Layout bytes uploaded to HDFS. The measurement JSON stays.
+results/transfer/**/part-*
+
+# Parquet files are rebuilt by experiments/measure_parquet.py
+# and experiments/measure_parquet_unified.py. Reports stay.
+results/**/*.parquet
+
+# Built from docs/problem_and_results.md with docs/print.css.
+docs/*.pdf
+docs/*.html
