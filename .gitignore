@@ -26,3 +26,11 @@ results/**/*.parquet
 # Built from docs/problem_and_results.md with docs/print.css.
 docs/*.pdf
 docs/*.html
+
+# Public 1000 Genomes genotypes. The panel file and the measurement stay.
+data/genotypes/*.vcf.gz
+data/genotypes/*.tbi
+data/*.vcf
+
+# Packed dosage blocks from experiments/real_stitch.py. The JSON report stays.
+results/real_stitch/*.bin

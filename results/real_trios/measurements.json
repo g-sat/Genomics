@@ -1,0 +1,30 @@
+{
+  "samples": 3202,
+  "biallelic_sites": 3000,
+  "variant_rows_scanned": 3290,
+  "trios": 602,
+  "nuclear_families": 597,
+  "duplication": 1.000936914428482,
+  "window": 200,
+  "first_trio_size": 3,
+  "blocks": [
+    {
+      "block": 65536,
+      "all_samples_window": 655360,
+      "trio_window": 65536,
+      "trio_plus_12_window": 851968,
+      "all_samples_scan": 9633792,
+      "family_files_scan": 131465216,
+      "window_ratio_all_over_trio": 10.0
+    },
+    {
+      "block": 134217728,
+      "all_samples_window": 134217728,
+      "trio_window": 134217728,
+      "trio_plus_12_window": 1744830464,
+      "all_samples_scan": 134217728,
+      "family_files_scan": 269240762368,
+      "window_ratio_all_over_trio": 1.0
+    }
+  ]
+}

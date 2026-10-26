@@ -1,0 +1,91 @@
+{
+  "source_vcf": "https://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz",
+  "chromosome": "22",
+  "n_variants": 3000,
+  "n_samples": 2504,
+  "n_families_size_at_least_2": 605,
+  "n_family_groups": 1872,
+  "phase3_has_no_parent_child_pair": true,
+  "populations": {
+    "EUR": 503,
+    "EAS": 504,
+    "AMR": 347,
+    "SAS": 489,
+    "AFR": 661
+  },
+  "window_variants": 200,
+  "block_bytes": 65536,
+  "horizon_queries": 32,
+  "stored_bytes": {
+    "all_samples": 7512000,
+    "nuclear_family": 7512000,
+    "superpopulation": 7512000
+  },
+  "stored_ratio_vs_all_samples": {
+    "nuclear_family": 1.0,
+    "superpopulation": 1.0
+  },
+  "mean_read_bytes": {
+    "all_samples_window": 524288,
+    "family_inside": 65536.0,
+    "family_cross": 851968.0,
+    "population_inside": 188416.0,
+    "population_cross": 365909.3333333333,
+    "scan_all": 7536640,
+    "scan_family": 122683392,
+    "scan_population": 7733248,
+    "parquet_one_family": 325
+  },
+  "parquet_over_opaque_trio": 0.0049591064453125,
+  "opaque_all_over_family_inside": 8.0,
+  "rule": {
+    "family_inside": {
+      "grouping": "pedigree family id, checks stay inside",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 65536.0,
+      "cost": 9609152.0,
+      "all_samples_cost": 24289216,
+      "rule_keeps_partition": true
+    },
+    "family_cross": {
+      "grouping": "pedigree family id, check adds 12 other people",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 851968.0,
+      "cost": 34774976.0,
+      "all_samples_cost": 24289216,
+      "rule_keeps_partition": false
+    },
+    "family_scan": {
+      "grouping": "pedigree family id, scans",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 122683392.0,
+      "cost": 3933380544.0,
+      "all_samples_cost": 248684480,
+      "rule_keeps_partition": false
+    },
+    "population_inside": {
+      "grouping": "superpopulation, checks stay inside",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 188416.0,
+      "cost": 13541312.0,
+      "all_samples_cost": 24289216,
+      "rule_keeps_partition": true
+    },
+    "population_cross": {
+      "grouping": "superpopulation, checks name two populations",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 365909.3333333333,
+      "cost": 19221098.666666664,
+      "all_samples_cost": 24289216,
+      "rule_keeps_partition": true
+    },
+    "population_scan": {
+      "grouping": "superpopulation, scans",
+      "stored_bytes": 7512000,
+      "mean_read_bytes": 7733248.0,
+      "cost": 254975936.0,
+      "all_samples_cost": 248684480,
+      "rule_keeps_partition": false
+    }
+  }
+}
